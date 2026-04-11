@@ -18,7 +18,7 @@ jwt:
 
 spring:
   datasource:
-    url: nextplan-db.ctgyacoq4wbx.ap-northeast-2.rds.amazonaws.com:5432/nextplan
+    url: jdbc:postgresql://nextplan-db.ctgyacoq4wbx.ap-northeast-2.rds.amazonaws.com:5432/nextplan
     username: postgres
     password: Nextplandb!
     driver-class-name: org.postgresql.Driver
