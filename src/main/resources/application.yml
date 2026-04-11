@@ -5,7 +5,7 @@ app:
 kakao:
   client-id: db721b1fa1169be8ebf9be1ebeedbcea
   client-secret: A6JQzYIeqtl0VzcGZlfsjQlaRNHm3Fys
-  redirect-uri: http://localhost:5173/auth/kakao/callback
+  redirect-uri: https://d5fqpgjqcaolx.cloudfront.net/auth/kakao/callback
   token-uri: https://kauth.kakao.com/oauth/token
   user-info-uri: https://kapi.kakao.com/v2/user/me
   logout-uri: https://kapi.kakao.com/v1/user/logout
