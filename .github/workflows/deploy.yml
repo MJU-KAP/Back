@@ -29,7 +29,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "build/libs/!(*-plain).jar" 
+          source: "build/libs/*.jar"
           target: "/home/ubuntu/app"
           strip_components: 2
 
@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 기존 프로세스 종료 (8080 포트 사용 중인 경우)
+            # 기존 프로세스 종료
             fuser -k 8080/tcp || true
-            # 새 어플리케이션 실행
+            # /home/ubuntu/app 폴더에 있는 유일한 jar 파일을 실행
             nohup java -jar /home/ubuntu/app/*.jar > /home/ubuntu/app/app.log 2>&1 &
