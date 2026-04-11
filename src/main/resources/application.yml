@@ -1,0 +1,17 @@
+app:
+  frontend-origin: http://localhost:5173
+  secure-cookie: false
+
+kakao:
+  client-id: db721b1fa1169be8ebf9be1ebeedbcea
+  client-secret: A6JQzYIeqtl0VzcGZlfsjQlaRNHm3Fys
+  redirect-uri: https://d5fqpgjqcaolx.cloudfront.net/auth/kakao/callback
+  token-uri: https://kauth.kakao.com/oauth/token
+  user-info-uri: https://kapi.kakao.com/v2/user/me
+  logout-uri: https://kapi.kakao.com/v1/user/logout
+  unlink-uri: https://kapi.kakao.com/v1/user/unlink
+
+jwt:
+  secret: your-very-long-secret-key-your-very-long-secret-key-123456
+  access-token-expiration-ms: 3600000
+  refresh-token-expiration-ms: 1209600000
