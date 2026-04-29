@@ -12,12 +12,15 @@ public class CookieUtil {
     @Value("${app.secure-cookie}")
     private boolean secureCookie;
 
+    @Value("${app.cookie.same-site}")
+    private String sameSite;
+
     public void addRefreshTokenCookie(HttpServletResponse response, String refreshToken, long maxAgeSec) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
                 .secure(secureCookie)
                 .path("/")
-                .sameSite("None")
+                .sameSite(sameSite)
                 .maxAge(maxAgeSec)
                 .build();
 
@@ -29,7 +32,7 @@ public class CookieUtil {
                 .httpOnly(true)
                 .secure(secureCookie)
                 .path("/")
-                .sameSite("None")
+                .sameSite(sameSite)
                 .maxAge(0)
                 .build();
 
