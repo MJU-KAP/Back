@@ -6,14 +6,15 @@ import com.example.NextPlan.auth.Service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -28,64 +29,42 @@ public class AuthController {
     private final JwtProvider jwtProvider;
 
     @PostMapping("/kakao/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         AuthService.LoginResult result = authService.login(request.code());
+        cookieUtil.addRefreshTokenCookie(response, result.refreshToken(), jwtProvider.getRefreshTokenExpirationSec());
 
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", result.refreshToken())
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .sameSite("None")
-                .maxAge(60 * 60 * 24 * 14) // 14일
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(result);
+        return ResponseEntity.ok(Map.of(
+                "accessToken", result.accessToken(),
+                "expiresIn", result.expiresIn(),
+                "user", result.user()
+        ));
     }
 
-    @PostMapping("/reissue")
-    public ResponseEntity<?> reissue(HttpServletRequest request) {
-
-        String refreshToken = extractCookie(request);
-
+    @PostMapping({"/reissue", "/refresh"})
+    public ResponseEntity<?> reissue(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = extractRefreshToken(request);
         AuthService.ReissueResult result = authService.reissue(refreshToken);
+        cookieUtil.addRefreshTokenCookie(response, result.refreshToken(), jwtProvider.getRefreshTokenExpirationSec());
 
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", result.refreshToken())
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .sameSite("None")
-                .maxAge(60 * 60 * 24 * 14)
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(result);
+        return ResponseEntity.ok(Map.of(
+                "accessToken", result.accessToken(),
+                "expiresIn", result.expiresIn()
+        ));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = extractRefreshToken(request);
+        if (refreshToken != null) {
+            authService.logout(refreshToken);
+        }
+        cookieUtil.expireRefreshTokenCookie(response);
 
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .sameSite("None")
-                .maxAge(0) // 삭제
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(Map.of("message", "success"));
+        return ResponseEntity.ok(Map.of("message", "success"));
     }
 
     @DeleteMapping("/withdraw")
-    public Map<String, String> withdraw(
-            HttpServletRequest request,
-            HttpServletResponse response
-    ) {
+    public Map<String, String> withdraw(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = extractRefreshToken(request);
         authService.withdraw(refreshToken);
         cookieUtil.expireRefreshTokenCookie(response);
@@ -94,16 +73,6 @@ public class AuthController {
     }
 
     private String extractRefreshToken(HttpServletRequest request) {
-        if (request.getCookies() == null) return null;
-
-        for (Cookie cookie : request.getCookies()) {
-            if ("refreshToken".equals(cookie.getName())) {
-                return cookie.getValue();
-            }
-        }
-        return null;
-    }
-    private String extractCookie(HttpServletRequest request) {
         if (request.getCookies() == null) {
             return null;
         }
@@ -116,8 +85,10 @@ public class AuthController {
 
         return null;
     }
+
     public record LoginRequest(
-            @NotBlank(message = "code는 필수입니다.")
+            @NotBlank(message = "code is required")
             String code
-    ) {}
+    ) {
+    }
 }
