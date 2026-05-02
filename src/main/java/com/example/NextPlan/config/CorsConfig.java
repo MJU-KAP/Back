@@ -6,10 +6,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 public class CorsConfig {
+
+    @Value("${app.frontend-origin}")
+    private String frontendOrigin;
 
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
@@ -19,8 +24,11 @@ public class CorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                Set<String> origins = new LinkedHashSet<>(allowedOrigins);
+                origins.add(frontendOrigin);
+
                 registry.addMapping("/**")
-                        .allowedOrigins(allowedOrigins.toArray(String[]::new))
+                        .allowedOrigins(origins.toArray(String[]::new))
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .exposedHeaders("Authorization", "Set-Cookie")
