@@ -71,11 +71,7 @@ public class JwtProvider {
 
     public UUID getUserId(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            Claims claims = parseClaims(token);
 
             return UUID.fromString(claims.getSubject());
         } catch (ExpiredJwtException e) {
@@ -87,13 +83,28 @@ public class JwtProvider {
         }
     }
 
+    public UUID validateAccessToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            String type = claims.get("type", String.class);
+
+            if (!"access".equals(type)) {
+                throw new CustomException(ErrorCode.FORBIDDEN);
+            }
+
+            return UUID.fromString(claims.getSubject());
+        } catch (ExpiredJwtException e) {
+            throw new CustomException(ErrorCode.ACCESS_TOKEN_EXPIRED);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        } catch (JwtException e) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+    }
+
     public void validateRefreshToken(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            Claims claims = parseClaims(token);
 
             String type = claims.get("type", String.class);
 
@@ -115,5 +126,13 @@ public class JwtProvider {
 
     public long getRefreshTokenExpirationSec() {
         return refreshTokenExpirationMs / 1000;
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
