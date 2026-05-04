@@ -17,16 +17,15 @@ public class CorsConfig {
     private String frontendOrigin;
 
     @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private String[] allowedOrigins;
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                Set<String> origins = new LinkedHashSet<>(allowedOrigins);
+                Set<String> origins = new LinkedHashSet<>(List.of(allowedOrigins));
                 origins.add(frontendOrigin);
-
                 registry.addMapping("/**")
                         .allowedOrigins(origins.toArray(String[]::new))
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
