@@ -48,5 +48,8 @@ jobs:
             rm -f /home/ubuntu/app/*-plain.jar
             # /home/ubuntu/app 폴더에 있는 유일한 jar 파일을 실행
             nohup java -jar /home/ubuntu/app/*.jar \
+              --DB_URL=${{ secrets.DB_URL }} \
+              --DB_USERNAME=${{ secrets.DB_USERNAME }} \
+              --DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
               --JWT_SECRET=${{ secrets.JWT_SECRET }} \
               > /home/ubuntu/app/app.log 2>&1 &
