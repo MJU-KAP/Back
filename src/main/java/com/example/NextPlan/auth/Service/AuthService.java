@@ -41,7 +41,11 @@ public class AuthService {
     private String redirectUri;
 
     @Value("${app.cors.allowed-origins}")
-    private String[] allowedOrigins;
+    private String allowedOriginsRaw;
+    
+    private List<String> getAllowedOrigins() {
+        return List.of(allowedOriginsRaw.split(","));
+    }
 
     private static final String KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
 
@@ -148,7 +152,7 @@ public class AuthService {
             return redirectUri;
         }
 
-        if (!allowedOrigins.contains(origin)) {
+        if (!getAllowedOrigins().contains(origin)) {
             throw new CustomException(ErrorCode.INVALID_REQUEST);
         }
 
