@@ -8,6 +8,7 @@ import com.example.NextPlan.auth.JwtProvider;
 import com.example.NextPlan.common.CustomException;
 import com.example.NextPlan.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.OffsetDateTime;
 import io.jsonwebtoken.Claims;
@@ -23,6 +25,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final JwtProvider jwtProvider;
@@ -158,7 +161,12 @@ public class AuthService {
             }
 
             return response;
+        } catch (WebClientResponseException e) {
+            log.error("Kakao token request failed. status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         } catch (Exception e) {
+            log.error("Kakao token request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
@@ -177,7 +185,12 @@ public class AuthService {
             }
 
             return response;
+        } catch (WebClientResponseException e) {
+            log.error("Kakao user info request failed. status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         } catch (Exception e) {
+            log.error("Kakao user info request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
@@ -190,7 +203,12 @@ public class AuthService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+        } catch (WebClientResponseException e) {
+            log.error("Kakao unlink request failed. status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         } catch (Exception e) {
+            log.error("Kakao unlink request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
