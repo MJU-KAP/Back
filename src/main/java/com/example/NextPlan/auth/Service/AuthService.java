@@ -144,6 +144,9 @@ public class AuthService {
             formData.add("redirect_uri", redirectUri);
             formData.add("code", code);
 
+            System.out.println("### redirect_uri: " + redirectUri);
+            System.out.println("### client_id: " + clientId);
+
             if (clientSecret != null && !clientSecret.isBlank()) {
                 formData.add("client_secret", clientSecret);
             }
