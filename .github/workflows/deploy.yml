@@ -27,6 +27,7 @@ jobs:
           ./gradlew clean build -x test
 
       - name: Copy JAR to EC2
+        if: github.event_name == 'push'
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -37,6 +38,7 @@ jobs:
           strip_components: 2
 
       - name: Run Application on EC2
+        if: github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -44,4 +46,50 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             rm -f /home/ubuntu/app/*-plain.jar
+            test -n '${{ secrets.DB_URL }}' || (echo 'DB_URL is required' && exit 1)
+            test -n '${{ secrets.DB_PASSWORD }}' || (echo 'DB_PASSWORD is required' && exit 1)
+            test -n '${{ secrets.JWT_SECRET }}' || (echo 'JWT_SECRET is required' && exit 1)
+            test -n '${{ secrets.KAKAO_REDIRECT_URI }}' || (echo 'KAKAO_REDIRECT_URI is required' && exit 1)
+            test -n '${{ secrets.KAKAO_CLIENT_SECRET }}' || (echo 'KAKAO_CLIENT_SECRET is required' && exit 1)
+
+            cat > /home/ubuntu/app/nextplan.env <<'EOF'
+            DB_URL=${{ secrets.DB_URL }}
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            KAKAO_REDIRECT_URI=${{ secrets.KAKAO_REDIRECT_URI }}
+            KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }}
+            SERVER_PORT=8080
+            SECURE_COOKIE=false
+            COOKIE_SAME_SITE=Lax
+            EOF
+
+            if [ -n '${{ secrets.KAKAO_CLIENT_ID }}' ]; then
+              echo 'KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}' >> /home/ubuntu/app/nextplan.env
+            fi
+
+            chmod 600 /home/ubuntu/app/nextplan.env
+
+            JAR_PATH="$(find /home/ubuntu/app -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)"
+            test -n "$JAR_PATH" || (echo 'Application jar not found' && exit 1)
+
+            sudo tee /etc/systemd/system/nextplan.service > /dev/null <<EOF
+            [Unit]
+            Description=NextPlan Spring Boot App
+            After=network.target
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/app
+            EnvironmentFile=/home/ubuntu/app/nextplan.env
+            ExecStart=/usr/bin/java -jar $JAR_PATH
+            SuccessExitStatus=143
+            Restart=always
+            RestartSec=10
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            sudo systemctl daemon-reload
             sudo systemctl restart nextplan
