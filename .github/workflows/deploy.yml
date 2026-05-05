@@ -52,4 +52,5 @@ jobs:
               --DB_USERNAME=${{ secrets.DB_USERNAME }} \
               --DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
               --JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              --KAKAO_REDIRECT_URI=${{ secrets.KAKAO_REDIRECT_URI }} \
               > /home/ubuntu/app/app.log 2>&1 &
