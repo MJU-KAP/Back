@@ -20,6 +20,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.time.OffsetDateTime;
 import io.jsonwebtoken.Claims;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -39,6 +40,11 @@ public class AuthService {
     @Value("${kakao.redirect-uri}")
     private String redirectUri;
 
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
+    private static final String KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
+
     @Value("${kakao.token-uri}")
     private String tokenUri;
 
@@ -54,8 +60,9 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
-    public LoginResult login(String code) {
-        KakaoTokenResponse kakaoToken = requestKakaoToken(code);
+    public LoginResult login(String code, String origin) {
+        String tokenRedirectUri = resolveRedirectUri(origin);
+        KakaoTokenResponse kakaoToken = requestKakaoToken(code, tokenRedirectUri);
         KakaoUserResponse kakaoUser = requestKakaoUser(kakaoToken.access_token());
         String kakaoId = String.valueOf(kakaoUser.id());
 
@@ -136,15 +143,27 @@ public class AuthService {
         userRepository.delete(user);
     }
 
-    private KakaoTokenResponse requestKakaoToken(String code) {
+    private String resolveRedirectUri(String origin) {
+        if (origin == null || origin.isBlank()) {
+            return redirectUri;
+        }
+
+        if (!allowedOrigins.contains(origin)) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
+
+        return origin + KAKAO_CALLBACK_PATH;
+    }
+
+    private KakaoTokenResponse requestKakaoToken(String code, String tokenRedirectUri) {
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("grant_type", "authorization_code");
             formData.add("client_id", clientId);
-            formData.add("redirect_uri", redirectUri);
+            formData.add("redirect_uri", tokenRedirectUri);
             formData.add("code", code);
 
-            System.out.println("### redirect_uri: " + redirectUri);
+            System.out.println("### redirect_uri: " + tokenRedirectUri);
             System.out.println("### client_id: " + clientId);
 
             if (clientSecret != null && !clientSecret.isBlank()) {
