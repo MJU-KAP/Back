@@ -41,7 +41,7 @@ public class AuthService {
     private String redirectUri;
 
     @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private String[] allowedOrigins;
 
     private static final String KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
 
