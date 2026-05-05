@@ -34,7 +34,7 @@ public class AuthService {
     @Value("${kakao.client-id}")
     private String clientId;
 
-    @Value("${kakao.client-secret:}")
+    @Value("${kakao.client-secret}")
     private String clientSecret;
 
     @Value("${kakao.redirect-uri}")
@@ -166,9 +166,7 @@ public class AuthService {
             System.out.println("### redirect_uri: " + tokenRedirectUri);
             System.out.println("### client_id: " + clientId);
 
-            if (clientSecret != null && !clientSecret.isBlank()) {
-                formData.add("client_secret", clientSecret);
-            }
+            formData.add("client_secret", clientSecret);
 
             KakaoTokenResponse response = webClient.post()
                     .uri(tokenUri)
