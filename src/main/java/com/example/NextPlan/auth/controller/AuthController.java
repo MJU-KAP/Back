@@ -29,8 +29,8 @@ public class AuthController {
     private final JwtProvider jwtProvider;
 
     @PostMapping("/kakao/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
-        AuthService.LoginResult result = authService.login(request.code());
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest servletRequest, HttpServletResponse response) {
+        AuthService.LoginResult result = authService.login(request.code(), servletRequest.getHeader("Origin"));
         cookieUtil.addRefreshTokenCookie(response, result.refreshToken(), jwtProvider.getRefreshTokenExpirationSec());
 
         return ResponseEntity.ok(Map.of(

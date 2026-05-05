@@ -8,6 +8,7 @@ import com.example.NextPlan.auth.JwtProvider;
 import com.example.NextPlan.common.CustomException;
 import com.example.NextPlan.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,14 +16,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.OffsetDateTime;
 import io.jsonwebtoken.Claims;
+import java.util.List;
 import java.util.UUID;
 
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final JwtProvider jwtProvider;
@@ -35,6 +39,11 @@ public class AuthService {
 
     @Value("${kakao.redirect-uri}")
     private String redirectUri;
+
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
+    private static final String KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
 
     @Value("${kakao.token-uri}")
     private String tokenUri;
@@ -51,8 +60,9 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
-    public LoginResult login(String code) {
-        KakaoTokenResponse kakaoToken = requestKakaoToken(code);
+    public LoginResult login(String code, String origin) {
+        String tokenRedirectUri = resolveRedirectUri(origin);
+        KakaoTokenResponse kakaoToken = requestKakaoToken(code, tokenRedirectUri);
         KakaoUserResponse kakaoUser = requestKakaoUser(kakaoToken.access_token());
         String kakaoId = String.valueOf(kakaoUser.id());
 
@@ -133,13 +143,28 @@ public class AuthService {
         userRepository.delete(user);
     }
 
-    private KakaoTokenResponse requestKakaoToken(String code) {
+    private String resolveRedirectUri(String origin) {
+        if (origin == null || origin.isBlank()) {
+            return redirectUri;
+        }
+
+        if (!allowedOrigins.contains(origin)) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
+
+        return origin + KAKAO_CALLBACK_PATH;
+    }
+
+    private KakaoTokenResponse requestKakaoToken(String code, String tokenRedirectUri) {
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("grant_type", "authorization_code");
             formData.add("client_id", clientId);
-            formData.add("redirect_uri", redirectUri);
+            formData.add("redirect_uri", tokenRedirectUri);
             formData.add("code", code);
+
+            System.out.println("### redirect_uri: " + tokenRedirectUri);
+            System.out.println("### client_id: " + clientId);
 
             if (clientSecret != null && !clientSecret.isBlank()) {
                 formData.add("client_secret", clientSecret);
@@ -158,7 +183,12 @@ public class AuthService {
             }
 
             return response;
+        } catch (WebClientResponseException e) {
+            log.error("Kakao token request failed. status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         } catch (Exception e) {
+            log.error("Kakao token request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
@@ -177,7 +207,12 @@ public class AuthService {
             }
 
             return response;
+        } catch (WebClientResponseException e) {
+            log.error("Kakao user info request failed. status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         } catch (Exception e) {
+            log.error("Kakao user info request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
@@ -190,7 +225,12 @@ public class AuthService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+        } catch (WebClientResponseException e) {
+            log.error("Kakao unlink request failed. status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         } catch (Exception e) {
+            log.error("Kakao unlink request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
