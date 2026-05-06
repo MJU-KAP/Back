@@ -20,12 +20,13 @@ spring:
     open-in-view: false
 
 app:
-  frontend-origin: http://localhost:5173
   secure-cookie: ${SECURE_COOKIE:false}
   cookie:
     same-site: ${COOKIE_SAME_SITE:Lax}
   cors:
-    allowed-origins: http://localhost:5173,https://d5fqpgjqcaolx.cloudfront.net
+    allowed-origins:
+      - http://localhost:5173
+      - https://d5fqpgjqcaolx.cloudfront.net
   crawl:
     schedule-enabled: ${CRAWL_SCHEDULE_ENABLED:false}
 

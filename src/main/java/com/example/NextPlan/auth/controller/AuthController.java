@@ -3,6 +3,8 @@ package com.example.NextPlan.auth.controller;
 import com.example.NextPlan.auth.CookieUtil;
 import com.example.NextPlan.auth.JwtProvider;
 import com.example.NextPlan.auth.Service.AuthService;
+import com.example.NextPlan.common.CustomException;
+import com.example.NextPlan.common.ErrorCode;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,8 +31,8 @@ public class AuthController {
     private final JwtProvider jwtProvider;
 
     @PostMapping("/kakao/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest servletRequest, HttpServletResponse response) {
-        AuthService.LoginResult result = authService.login(request.code(), servletRequest.getHeader("Origin"));
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+        AuthService.LoginResult result = authService.login(request.code());
         cookieUtil.addRefreshTokenCookie(response, result.refreshToken(), jwtProvider.getRefreshTokenExpirationSec());
 
         return ResponseEntity.ok(Map.of(
@@ -66,6 +68,9 @@ public class AuthController {
     @DeleteMapping("/withdraw")
     public Map<String, String> withdraw(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = extractRefreshToken(request);
+        if (refreshToken == null) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
         authService.withdraw(refreshToken);
         cookieUtil.expireRefreshTokenCookie(response);
 
@@ -89,6 +94,5 @@ public class AuthController {
     public record LoginRequest(
             @NotBlank(message = "code is required")
             String code
-    ) {
-    }
+    ) {}
 }
