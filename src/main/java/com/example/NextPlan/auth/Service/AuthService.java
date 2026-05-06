@@ -57,7 +57,9 @@ public class AuthService {
         KakaoUserResponse kakaoUser = requestKakaoUser(kakaoToken.access_token());
         String kakaoId = String.valueOf(kakaoUser.id());
 
-        String nickname = kakaoUser.properties() != null ? kakaoUser.properties().nickname() : null;
+        String nickname = (kakaoUser.properties() != null && kakaoUser.properties().nickname() != null)
+                ? kakaoUser.properties().nickname()
+                : "카카오사용자_" + kakaoId.substring(Math.max(0, kakaoId.length() - 4));
         String profileImg = kakaoUser.properties() != null ? kakaoUser.properties().profile_image() : null;
 
         User user = userRepository.findByKakaoId(kakaoId)
