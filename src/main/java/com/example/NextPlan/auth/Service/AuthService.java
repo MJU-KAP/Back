@@ -57,12 +57,15 @@ public class AuthService {
         KakaoUserResponse kakaoUser = requestKakaoUser(kakaoToken.access_token());
         String kakaoId = String.valueOf(kakaoUser.id());
 
+        String nickname = kakaoUser.properties() != null ? kakaoUser.properties().nickname() : null;
+        String profileImg = kakaoUser.properties() != null ? kakaoUser.properties().profile_image() : null;
+
         User user = userRepository.findByKakaoId(kakaoId)
                 .orElseGet(() -> userRepository.save(
                         User.builder()
                                 .kakaoId(kakaoId)
-                                .nickname(kakaoUser.properties().nickname())
-                                .profileImg(kakaoUser.properties().profile_image())
+                                .nickname(nickname)
+                                .profileImg(profileImg)
                                 .email(null)
                                 .isOnboarded(false)
                                 .createdAt(OffsetDateTime.now())
