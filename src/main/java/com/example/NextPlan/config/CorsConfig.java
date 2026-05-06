@@ -3,43 +3,34 @@ package com.example.NextPlan.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
-@ConfigurationProperties(prefix = "app")
+@ConfigurationProperties(prefix = "app.cors")
 public class CorsConfig {
 
-    private String frontendOrigin;
-    private Cors cors = new Cors();
+    private List<String> allowedOrigins = List.of();
 
-    public static class Cors {
-        private List<String> allowedOrigins = new ArrayList<>();
-        public List<String> getAllowedOrigins() { return allowedOrigins; }
-        public void setAllowedOrigins(List<String> allowedOrigins) { this.allowedOrigins = allowedOrigins; }
+    public void setAllowedOrigins(List<String> allowedOrigins) {
+        this.allowedOrigins = allowedOrigins;
     }
 
-    public void setFrontendOrigin(String frontendOrigin) { this.frontendOrigin = frontendOrigin; }
-    public void setCors(Cors cors) { this.cors = cors; }
-
     @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
-                List<String> origins = new ArrayList<>(cors.getAllowedOrigins());
-                origins.add(frontendOrigin);
-                registry.addMapping("/**")
-                        .allowedOrigins(origins.toArray(String[]::new))
-                        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                        .allowedHeaders("*")
-                        .exposedHeaders("Authorization", "Set-Cookie")
-                        .allowCredentials(true)
-                        .maxAge(3600);
-            }
-        };
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(allowedOrigins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Set-Cookie"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

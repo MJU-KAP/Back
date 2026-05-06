@@ -19,10 +19,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.OffsetDateTime;
-import io.jsonwebtoken.Claims;
-import java.util.List;
 import java.util.UUID;
-
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +27,8 @@ import java.util.UUID;
 public class AuthService {
 
     private final JwtProvider jwtProvider;
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Value("${kakao.client-id}")
     private String clientId;
@@ -40,33 +39,16 @@ public class AuthService {
     @Value("${kakao.redirect-uri}")
     private String redirectUri;
 
-    @Value("${app.cors.allowed-origins}")
-    private String allowedOriginsRaw;
-    
-    private List<String> getAllowedOrigins() {
-        return List.of(allowedOriginsRaw.split(","));
-    }
-
-    private static final String KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
-
     @Value("${kakao.token-uri}")
     private String tokenUri;
 
     @Value("${kakao.user-info-uri}")
     private String userInfoUri;
 
-    @Value("${kakao.unlink-uri}")
-    private String unlinkUri;
-
-    //외부 HTTP API 호출용
     private final WebClient webClient = WebClient.builder().build();
 
-    private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
-
-    public LoginResult login(String code, String origin) {
-        String tokenRedirectUri = resolveRedirectUri(origin);
-        KakaoTokenResponse kakaoToken = requestKakaoToken(code, tokenRedirectUri);
+    public LoginResult login(String code) {
+        KakaoTokenResponse kakaoToken = requestKakaoToken(code);
         KakaoUserResponse kakaoUser = requestKakaoUser(kakaoToken.access_token());
         String kakaoId = String.valueOf(kakaoUser.id());
 
@@ -91,18 +73,14 @@ public class AuthService {
                 accessToken,
                 refreshToken,
                 jwtProvider.getAccessTokenExpirationSec(),
-                new UserInfo(
-                        user.getUserId(),
-                        user.getNickname(),
-                        user.getProfileImg()
-                )
+                new UserInfo(user.getUserId(), user.getNickname(), user.getProfileImg())
         );
     }
 
     public ReissueResult reissue(String refreshToken) {
-
         jwtProvider.validateRefreshToken(refreshToken);
         UUID userId = jwtProvider.getUserId(refreshToken);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
 
@@ -118,57 +96,33 @@ public class AuthService {
 
         saved.updateToken(newRefreshToken,
                 OffsetDateTime.now().plusSeconds(jwtProvider.getRefreshTokenExpirationSec()));
-
         refreshTokenRepository.save(saved);
 
-        return new ReissueResult(
-                newAccessToken,
-                newRefreshToken,
-                jwtProvider.getAccessTokenExpirationSec()
-        );
-}
+        return new ReissueResult(newAccessToken, newRefreshToken, jwtProvider.getAccessTokenExpirationSec());
+    }
 
     public void logout(String refreshToken) {
         UUID userId = jwtProvider.getUserId(refreshToken);
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
-
         refreshTokenRepository.deleteByUser(user);
     }
 
     public void withdraw(String refreshToken) {
         UUID userId = jwtProvider.getUserId(refreshToken);
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
-
         refreshTokenRepository.deleteByUser(user);
         userRepository.delete(user);
     }
 
-    private String resolveRedirectUri(String origin) {
-        if (origin == null || origin.isBlank()) {
-            return redirectUri;
-        }
-
-        if (!getAllowedOrigins().contains(origin)) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST);
-        }
-
-        return origin + KAKAO_CALLBACK_PATH;
-    }
-
-    private KakaoTokenResponse requestKakaoToken(String code, String tokenRedirectUri) {
+    private KakaoTokenResponse requestKakaoToken(String code) {
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("grant_type", "authorization_code");
             formData.add("client_id", clientId);
-            formData.add("redirect_uri", tokenRedirectUri);
+            formData.add("redirect_uri", redirectUri);
             formData.add("code", code);
-
-            System.out.println("### redirect_uri: " + tokenRedirectUri);
-            System.out.println("### client_id: " + clientId);
 
             if (clientSecret != null && !clientSecret.isBlank()) {
                 formData.add("client_secret", clientSecret);
@@ -191,6 +145,8 @@ public class AuthService {
             log.error("Kakao token request failed. status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Kakao token request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
@@ -215,48 +171,39 @@ public class AuthService {
             log.error("Kakao user info request failed. status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Kakao user info request failed.", e);
             throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
         }
     }
 
-    private void requestKakaoUnlink(String kakaoAccessToken) {
-        try {
-            webClient.post()
-                    .uri(unlinkUri)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + kakaoAccessToken)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (WebClientResponseException e) {
-            log.error("Kakao unlink request failed. status={}, body={}",
-                    e.getStatusCode(), e.getResponseBodyAsString());
-            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
-        } catch (Exception e) {
-            log.error("Kakao unlink request failed.", e);
-            throw new CustomException(ErrorCode.KAKAO_AUTH_FAILED);
-        }
+    private void saveOrUpdateRefreshToken(User user, String token) {
+        OffsetDateTime expiry = OffsetDateTime.now().plusSeconds(jwtProvider.getRefreshTokenExpirationSec());
+
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
+                .map(rt -> {
+                    rt.updateToken(token, expiry);
+                    return rt;
+                })
+                .orElseGet(() -> RefreshToken.builder()
+                        .user(user)
+                        .token(token)
+                        .expiresAt(expiry)
+                        .createdAt(OffsetDateTime.now())
+                        .updatedAt(OffsetDateTime.now())
+                        .build()
+                );
+
+        refreshTokenRepository.save(refreshToken);
     }
 
-    public record LoginResult(
-            String accessToken,
-            String refreshToken,
-            long expiresIn,
-            UserInfo user
-    ) {}
+    public record LoginResult(String accessToken, String refreshToken, long expiresIn, UserInfo user) {}
 
-    public record ReissueResult(
-            String accessToken,
-            String refreshToken,
-            long expiresIn
-    ) {}
+    public record ReissueResult(String accessToken, String refreshToken, long expiresIn) {}
 
-    public record UserInfo(
-            UUID id,
-            String nickname,
-            String profileImage
-    ) {}
+    public record UserInfo(UUID id, String nickname, String profileImage) {}
 
     public record KakaoTokenResponse(
             String token_type,
@@ -266,35 +213,7 @@ public class AuthService {
             Long refresh_token_expires_in
     ) {}
 
-    public record KakaoUserResponse(
-            Long id,
-            Properties properties
-    ) {
-        public record Properties(
-                String nickname,
-                String profile_image
-        ) {}
-    }
-    private void saveOrUpdateRefreshToken(User user, String token) {
-
-        OffsetDateTime expiry =
-                OffsetDateTime.now().plusSeconds(jwtProvider.getRefreshTokenExpirationSec());
-
-        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
-                .map(rt -> {
-                    rt.updateToken(token, expiry);
-                    return rt;
-                })
-                .orElseGet(() ->
-                        RefreshToken.builder()
-                                .user(user)
-                                .token(token)
-                                .expiresAt(expiry)
-                                .createdAt(OffsetDateTime.now())
-                                .updatedAt(OffsetDateTime.now())
-                                .build()
-                );
-
-        refreshTokenRepository.save(refreshToken);
+    public record KakaoUserResponse(Long id, Properties properties) {
+        public record Properties(String nickname, String profile_image) {}
     }
 }
