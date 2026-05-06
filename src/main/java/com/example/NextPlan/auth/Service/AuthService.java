@@ -7,6 +7,7 @@ import com.example.NextPlan.Repository.UserRepository;
 import com.example.NextPlan.auth.JwtProvider;
 import com.example.NextPlan.common.CustomException;
 import com.example.NextPlan.common.ErrorCode;
+import com.example.NextPlan.config.CorsConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +20,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,6 +30,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final CorsConfig corsConfig;
 
     @Value("${kakao.client-id}")
     private String clientId;
@@ -40,9 +41,6 @@ public class AuthService {
     @Value("${kakao.redirect-uri}")
     private String redirectUri;
 
-    @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
-
     @Value("${kakao.token-uri}")
     private String tokenUri;
 
@@ -52,7 +50,7 @@ public class AuthService {
     private final WebClient webClient = WebClient.builder().build();
 
     public LoginResult login(String code, String origin) {
-        String tokenRedirectUri = (origin != null && allowedOrigins.contains(origin))
+        String tokenRedirectUri = (origin != null && corsConfig.getAllowedOrigins().contains(origin))
                 ? origin + "/auth/kakao/callback"
                 : redirectUri;
         KakaoTokenResponse kakaoToken = requestKakaoToken(code, tokenRedirectUri);
