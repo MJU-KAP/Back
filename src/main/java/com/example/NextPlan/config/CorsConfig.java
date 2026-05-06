@@ -19,6 +19,10 @@ public class CorsConfig {
         this.allowedOrigins = allowedOrigins;
     }
 
+    public List<String> getAllowedOrigins() {
+        return allowedOrigins;
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
