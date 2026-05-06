@@ -19,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -39,6 +40,9 @@ public class AuthService {
     @Value("${kakao.redirect-uri}")
     private String redirectUri;
 
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
     @Value("${kakao.token-uri}")
     private String tokenUri;
 
@@ -47,8 +51,11 @@ public class AuthService {
 
     private final WebClient webClient = WebClient.builder().build();
 
-    public LoginResult login(String code) {
-        KakaoTokenResponse kakaoToken = requestKakaoToken(code);
+    public LoginResult login(String code, String origin) {
+        String tokenRedirectUri = (origin != null && allowedOrigins.contains(origin))
+                ? origin + "/auth/kakao/callback"
+                : redirectUri;
+        KakaoTokenResponse kakaoToken = requestKakaoToken(code, tokenRedirectUri);
         KakaoUserResponse kakaoUser = requestKakaoUser(kakaoToken.access_token());
         String kakaoId = String.valueOf(kakaoUser.id());
 
@@ -116,12 +123,12 @@ public class AuthService {
         userRepository.delete(user);
     }
 
-    private KakaoTokenResponse requestKakaoToken(String code) {
+    private KakaoTokenResponse requestKakaoToken(String code, String tokenRedirectUri) {
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("grant_type", "authorization_code");
             formData.add("client_id", clientId);
-            formData.add("redirect_uri", redirectUri);
+            formData.add("redirect_uri", tokenRedirectUri);
             formData.add("code", code);
 
             if (clientSecret != null && !clientSecret.isBlank()) {
