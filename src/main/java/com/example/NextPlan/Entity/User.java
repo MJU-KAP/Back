@@ -2,8 +2,12 @@ package com.example.NextPlan.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -34,11 +38,20 @@ public class User {
     @Column(name = "is_onboarded", nullable = false)
     private boolean isOnboarded;
 
+    @Builder.Default
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "desired_jobs", nullable = false)
+    private List<String> desiredJobs = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
+
 
     public void updateProfile(String nickname, String profileImg) {
         this.nickname = nickname;
         this.profileImg = profileImg;
+    }
+    public void updateDesiredJobs(List<String> desiredJobs) {
+        this.desiredJobs = desiredJobs == null ? new ArrayList<>() : new ArrayList<>(desiredJobs);
     }
 }
