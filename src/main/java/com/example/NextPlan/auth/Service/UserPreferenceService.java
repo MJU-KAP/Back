@@ -21,20 +21,21 @@ public class UserPreferenceService {
     private final UserSkillRepository userSkillRepository;
 
     @Transactional
-    public void savePreference(UUID userId, List<String> desiredJobs, List<String> skills) {
+    public void savePreference(UUID userId, String desiredJobRole, List<String> techStacks) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
 
-        user.updateDesiredJobs(desiredJobs);
+        user.updateDesiredJobs(List.of(desiredJobRole.trim()));
 
         userSkillRepository.deleteByUser(user);
 
-        List<UserSkill> userSkills = skills.stream()
-                .filter(skill -> skill != null && !skill.isBlank())
+        List<UserSkill> userSkills = techStacks.stream()
+                .filter(techStack -> techStack != null && !techStack.isBlank())
+                .map(String::trim)
                 .distinct()
-                .map(skill -> UserSkill.builder()
+                .map(techStack -> UserSkill.builder()
                         .user(user)
-                        .skillName(skill)
+                        .skillName(techStack)
                         .proficiency((short) 0)
                         .build())
                 .toList();
