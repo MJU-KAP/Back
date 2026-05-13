@@ -6,7 +6,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,8 +39,8 @@ public class User {
 
     @Builder.Default
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "desired_jobs", nullable = false)
-    private List<String> desiredJobs = new ArrayList<>();
+    @Column(name = "desired_jobs", nullable = false, columnDefinition = "text[]")
+    private String[] desiredJobs = new String[0];
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -52,6 +51,6 @@ public class User {
         this.profileImg = profileImg;
     }
     public void updateDesiredJobs(List<String> desiredJobs) {
-        this.desiredJobs = desiredJobs == null ? new ArrayList<>() : new ArrayList<>(desiredJobs);
+        this.desiredJobs = desiredJobs == null ? new String[0] : desiredJobs.toArray(new String[0]);
     }
 }
