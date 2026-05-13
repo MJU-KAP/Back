@@ -27,7 +27,7 @@ public class MyPageService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
 
         List<AiAnalysisRecord> records =
-                aiAnalysisRecordRepository.findByUserOrderByCreatedAtDesc(userId);
+                aiAnalysisRecordRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
         List<AnalysisRecordResponse> analysisRecords = records.stream()
                 .map(AnalysisRecordResponse::from)
