@@ -29,16 +29,18 @@ public class UserPreferenceService {
 
         userSkillRepository.deleteByUser(user);
 
-        List<UserSkill> userSkills = techStacks.stream()
+        List<String> normalizedTechStacks = techStacks.stream()
                 .filter(techStack -> techStack != null && !techStack.isBlank())
                 .map(String::trim)
                 .distinct()
-                .map(techStack -> UserSkill.builder()
-                        .user(user)
-                        .skillName(techStack)
-                        .proficiency((short) 0)
-                        .build())
                 .toList();
-        userSkillRepository.saveAll(userSkills);
+
+        UserSkill userSkill = UserSkill.builder()
+                .user(user)
+                .skillNames(normalizedTechStacks)
+                .proficiency((short) 0)
+                .build();
+
+        userSkillRepository.save(userSkill);
     }
 }

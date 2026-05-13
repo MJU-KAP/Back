@@ -2,6 +2,11 @@ package com.example.NextPlan.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "user_skills")
@@ -19,8 +24,10 @@ public class UserSkill {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "skill_name", nullable = false, length = 50)
-    private String skillName;
+    @Builder.Default
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "skill_name", nullable = false, columnDefinition = "TEXT[]")
+    private List<String> skillNames = new ArrayList<>();
 
     @Column(name = "proficiency", nullable = false)
     @Builder.Default
