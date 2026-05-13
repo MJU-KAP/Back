@@ -27,7 +27,7 @@ public class UserSkill {
     @Builder.Default
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "skill_name", columnDefinition = "text[]")
-    private List<String> skillName;
+    private List<String> skillName = new ArrayList<>();
 
     @Column(name = "proficiency", nullable = false)
     @Builder.Default
