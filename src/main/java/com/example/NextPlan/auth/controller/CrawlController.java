@@ -1,8 +1,11 @@
 package com.example.NextPlan.auth.controller;
 
+import com.example.NextPlan.Entity.ExternalActivity;
+import com.example.NextPlan.Repository.ExternalActivityRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -31,10 +35,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @RestController
 @RequestMapping("/api/crawl")
+@RequiredArgsConstructor
 public class CrawlController {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
@@ -56,6 +62,7 @@ public class CrawlController {
             )
     );
 
+    private final ExternalActivityRepository externalActivityRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AtomicReference<CrawlResponse> latestResult = new AtomicReference<>(
             new CrawlResponse(OffsetDateTime.now(KOREA_ZONE), 0, List.of(), "READY", null)
@@ -73,6 +80,22 @@ public class CrawlController {
 
     @GetMapping
     public CrawlResponse getCrawlData() {
+        List<CrawlItem> savedItems = externalActivityRepository.findAllByOrderByExtIdDesc()
+                .stream()
+                .map(this::toCrawlItem)
+                .toList();
+
+        if (!savedItems.isEmpty()) {
+            CrawlResponse latest = latestResult.get();
+            return new CrawlResponse(
+                    latest.crawledAt(),
+                    savedItems.size(),
+                    savedItems,
+                    "SUCCESS",
+                    latest.error()
+            );
+        }
+
         return latestResult.get();
     }
 
@@ -113,6 +136,8 @@ public class CrawlController {
                 }
             }
 
+            saveCrawledItems(items);
+
             latestResult.set(new CrawlResponse(
                     OffsetDateTime.now(KOREA_ZONE),
                     items.size(),
@@ -132,6 +157,99 @@ public class CrawlController {
             if (driver != null) {
                 driver.quit();
             }
+        }
+    }
+
+    private void saveCrawledItems(List<CrawlItem> items) {
+        List<ExternalActivity> activities = items.stream()
+                .filter(item -> item.url() != null && !item.url().isBlank())
+                .map(this::toExternalActivity)
+                .toList();
+
+        externalActivityRepository.saveAll(activities);
+    }
+
+    private ExternalActivity toExternalActivity(CrawlItem item) {
+        String title = item.title() == null || item.title().isBlank() ? "(제목 없음)" : item.title();
+        String category = item.category() == null || item.category().isBlank() ? item.categoryName() : item.category();
+        List<String> requiredSkills = extractRequiredSkills(item);
+        LocalDate deadline = extractDeadline(item);
+
+        return externalActivityRepository.findByOriginUrl(item.url())
+                .map(existing -> {
+                    existing.update(title, category, requiredSkills, deadline);
+                    return existing;
+                })
+                .orElseGet(() -> ExternalActivity.builder()
+                        .title(title)
+                        .category(category)
+                        .requiredSkills(requiredSkills)
+                        .deadline(deadline)
+                        .originUrl(item.url())
+                        .build()
+                );
+    }
+
+    private CrawlItem toCrawlItem(ExternalActivity activity) {
+        Map<String, String> basicInfo = new LinkedHashMap<>();
+
+        if (activity.getRequiredSkills() != null && !activity.getRequiredSkills().isEmpty()) {
+            basicInfo.put("skills", String.join(", ", activity.getRequiredSkills()));
+        }
+
+        if (activity.getDeadline() != null) {
+            basicInfo.put("recruitPeriod", " ~ " + activity.getDeadline());
+        }
+
+        return new CrawlItem(
+                activity.getCategory(),
+                activity.getCategory(),
+                activity.getTitle(),
+                activity.getOriginUrl(),
+                "",
+                "",
+                "",
+                basicInfo,
+                ""
+        );
+    }
+
+    private List<String> extractRequiredSkills(CrawlItem item) {
+        if (item.basicInfo() == null) {
+            return List.of();
+        }
+
+        String skills = item.basicInfo().get("skills");
+        if (skills == null || skills.isBlank()) {
+            return List.of();
+        }
+
+        return Stream.of(skills.split(","))
+                .map(String::trim)
+                .filter(skill -> !skill.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private LocalDate extractDeadline(CrawlItem item) {
+        if (item.basicInfo() == null) {
+            return null;
+        }
+
+        String recruitPeriod = item.basicInfo().get("recruitPeriod");
+        if (recruitPeriod == null || !recruitPeriod.contains("~")) {
+            return null;
+        }
+
+        String endDate = recruitPeriod.substring(recruitPeriod.indexOf("~") + 1).trim();
+        if (endDate.isBlank()) {
+            return null;
+        }
+
+        try {
+            return LocalDate.parse(endDate);
+        } catch (Exception ignored) {
+            return null;
         }
     }
 
