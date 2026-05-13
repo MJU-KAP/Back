@@ -37,7 +37,7 @@ public class UserPreferenceService {
 
         UserSkill userSkill = UserSkill.builder()
                 .user(user)
-                .skillNames(normalizedTechStacks)
+                .skillName(normalizedTechStacks)
                 .proficiency((short) 0)
                 .build();
 
