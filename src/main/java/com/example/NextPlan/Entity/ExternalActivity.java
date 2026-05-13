@@ -90,7 +90,7 @@ public class ExternalActivity {
     @Column(name = "contest_field", length = 255)
     private String contestField;
 
-    @Column(name = "detail", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String detail;
 
     public void update(
