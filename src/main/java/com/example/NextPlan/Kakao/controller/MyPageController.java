@@ -1,6 +1,6 @@
-package com.example.NextPlan.KakaoLogin.controller;
-import com.example.NextPlan.KakaoLogin.Service.MyPageService;
-import com.example.NextPlan.KakaoLogin.Service.MyPageService.MyPageResponse;
+package com.example.NextPlan.Kakao.controller;
+import com.example.NextPlan.Kakao.Service.MyPageService;
+import com.example.NextPlan.Kakao.Service.MyPageService.MyPageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

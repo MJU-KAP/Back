@@ -1,4 +1,4 @@
-package com.example.NextPlan.KakaoLogin.common;
+package com.example.NextPlan.Kakao.common;
 
 public class CustomException extends RuntimeException {
     private final ErrorCode errorCode;

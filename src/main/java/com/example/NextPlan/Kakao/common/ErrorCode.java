@@ -1,4 +1,4 @@
-package com.example.NextPlan.KakaoLogin.common;
+package com.example.NextPlan.Kakao.common;
 
 import lombok.Getter;
 import org.springframework.http.HttpStatus;

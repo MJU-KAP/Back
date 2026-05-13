@@ -1,10 +1,10 @@
-package com.example.NextPlan.KakaoLogin.controller;
+package com.example.NextPlan.Kakao.controller;
 
-import com.example.NextPlan.KakaoLogin.CookieUtil;
-import com.example.NextPlan.KakaoLogin.JwtProvider;
-import com.example.NextPlan.KakaoLogin.Service.AuthService;
-import com.example.NextPlan.KakaoLogin.common.CustomException;
-import com.example.NextPlan.KakaoLogin.common.ErrorCode;
+import com.example.NextPlan.Kakao.CookieUtil;
+import com.example.NextPlan.Kakao.JwtProvider;
+import com.example.NextPlan.Kakao.Service.AuthService;
+import com.example.NextPlan.Kakao.common.CustomException;
+import com.example.NextPlan.Kakao.common.ErrorCode;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

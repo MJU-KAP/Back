@@ -476,7 +476,7 @@ public class CrawlService {
             String awardScale,
             String contestField,
             List<String> requiredSkills,
-            String detail
+            String result
     ) {
     }
 

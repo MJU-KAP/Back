@@ -1,7 +1,7 @@
-package com.example.NextPlan.KakaoLogin.config;
+package com.example.NextPlan.Kakao.config;
 
-import com.example.NextPlan.KakaoLogin.JwtProvider;
-import com.example.NextPlan.KakaoLogin.common.CustomException;
+import com.example.NextPlan.Kakao.JwtProvider;
+import com.example.NextPlan.Kakao.common.CustomException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

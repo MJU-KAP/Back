@@ -1,9 +1,9 @@
-package com.example.NextPlan.KakaoLogin.Service;
+package com.example.NextPlan.Kakao.Service;
 
 import com.example.NextPlan.Entity.AiAnalysisRecord;
 import com.example.NextPlan.Entity.User;
-import com.example.NextPlan.KakaoLogin.common.CustomException;
-import com.example.NextPlan.KakaoLogin.common.ErrorCode;
+import com.example.NextPlan.Kakao.common.CustomException;
+import com.example.NextPlan.Kakao.common.ErrorCode;
 import com.example.NextPlan.Repository.AiAnalysisRecordRepository;
 import com.example.NextPlan.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
