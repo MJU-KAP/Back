@@ -5,9 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
 @Table(name = "user_skills")
 @Getter
@@ -26,8 +23,8 @@ public class UserSkill {
 
     @Builder.Default
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "skill_name", columnDefinition = "text[]")
-    private List<String> skillName = new ArrayList<>();
+    @Column(name = "skill_name", nullable = false, columnDefinition = "text[]")
+    private String[] skillName = new String[0];
 
     @Column(name = "proficiency", nullable = false)
     @Builder.Default
