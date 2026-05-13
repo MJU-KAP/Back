@@ -1,6 +1,6 @@
-package com.example.NextPlan.auth.controller;
+package com.example.NextPlan.KakaoLogin.controller;
 
-import com.example.NextPlan.auth.Service.UserPreferenceService;
+import com.example.NextPlan.KakaoLogin.Service.UserPreferenceService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;

@@ -1,4 +1,4 @@
-package com.example.NextPlan.auth;
+package com.example.NextPlan.KakaoLogin;
 
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;

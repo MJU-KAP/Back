@@ -1,11 +1,11 @@
-package com.example.NextPlan.auth.Service;
+package com.example.NextPlan.KakaoLogin.Service;
 
 import com.example.NextPlan.Entity.User;
 import com.example.NextPlan.Entity.UserSkill;
 import com.example.NextPlan.Repository.UserRepository;
 import com.example.NextPlan.Repository.UserSkillRepository;
-import com.example.NextPlan.common.CustomException;
-import com.example.NextPlan.common.ErrorCode;
+import com.example.NextPlan.KakaoLogin.common.CustomException;
+import com.example.NextPlan.KakaoLogin.common.ErrorCode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
