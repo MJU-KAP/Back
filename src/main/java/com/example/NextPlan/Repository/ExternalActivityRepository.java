@@ -11,4 +11,6 @@ public interface ExternalActivityRepository extends JpaRepository<ExternalActivi
     Optional<ExternalActivity> findByOriginUrl(String originUrl);
 
     List<ExternalActivity> findAllByOrderByExtIdDesc();
+
+    List<ExternalActivity> findByCategoryOrderByExtIdDesc(String category);
 }

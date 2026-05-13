@@ -1,13 +1,13 @@
-package com.example.NextPlan.auth.Service;
+package com.example.NextPlan.KakaoLogin.Service;
 
 import com.example.NextPlan.Entity.RefreshToken;
 import com.example.NextPlan.Entity.User;
 import com.example.NextPlan.Repository.RefreshTokenRepository;
 import com.example.NextPlan.Repository.UserRepository;
-import com.example.NextPlan.auth.JwtProvider;
-import com.example.NextPlan.common.CustomException;
-import com.example.NextPlan.common.ErrorCode;
-import com.example.NextPlan.config.CorsConfig;
+import com.example.NextPlan.KakaoLogin.JwtProvider;
+import com.example.NextPlan.KakaoLogin.common.CustomException;
+import com.example.NextPlan.KakaoLogin.common.ErrorCode;
+import com.example.NextPlan.KakaoLogin.config.CorsConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

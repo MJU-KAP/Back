@@ -1,8 +1,8 @@
-package com.example.NextPlan.auth;
+package com.example.NextPlan.KakaoLogin;
 
 
-import com.example.NextPlan.common.CustomException;
-import com.example.NextPlan.common.ErrorCode;
+import com.example.NextPlan.KakaoLogin.common.CustomException;
+import com.example.NextPlan.KakaoLogin.common.ErrorCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;

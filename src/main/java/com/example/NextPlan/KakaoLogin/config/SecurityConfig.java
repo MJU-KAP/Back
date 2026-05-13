@@ -1,4 +1,4 @@
-package com.example.NextPlan.config;
+package com.example.NextPlan.KakaoLogin.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
