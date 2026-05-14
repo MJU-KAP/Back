@@ -23,7 +23,7 @@ public class UserSkill {
 
     @Builder.Default
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "skill_name", nullable = false, columnDefinition = "text[]")
+    @Column(name = "skill_name", nullable = false, columnDefinition = "TEXT[]")
     private String[] skillName = new String[0];
 
     @Column(name = "proficiency", nullable = false)

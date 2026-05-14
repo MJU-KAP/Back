@@ -36,7 +36,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-
+    implementation platform("software.amazon.awssdk:bom:2.25.60")
+    implementation "software.amazon.awssdk:s3"
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 

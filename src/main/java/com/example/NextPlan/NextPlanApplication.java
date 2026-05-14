@@ -1,6 +1,6 @@
 package com.example.NextPlan;
 
-import com.example.NextPlan.KakaoLogin.config.CorsConfig;
+import com.example.NextPlan.Kakao.config.CorsConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

@@ -1,4 +1,4 @@
-package com.example.NextPlan.KakaoLogin.common;
+package com.example.NextPlan.Kakao.common;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
