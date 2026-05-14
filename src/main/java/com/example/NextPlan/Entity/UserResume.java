@@ -36,6 +36,9 @@ public class UserResume {
     @Column(name = "file_url", columnDefinition = "TEXT")
     private String fileUrl;
 
+    @Column(name = "file_name", length = 255)
+    private String fileName;
+
     @Column(name = "portfolio_url", columnDefinition = "TEXT")
     private String portfolioUrl;
 

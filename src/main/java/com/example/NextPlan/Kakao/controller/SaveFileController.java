@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/analyze")
+@RequestMapping("/api/fileupload")
 @RequiredArgsConstructor
 public class SaveFileController {
 

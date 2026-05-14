@@ -47,11 +47,13 @@ public class SaveFileService {
         validateFiles(files);
 
         for (MultipartFile file : files) {
+            String originalFilename = file.getOriginalFilename();
             String fileUrl = uploadToS3(userId, file);
 
             UserResume userResume = UserResume.builder()
                     .userId(userId)
                     .fileUrl(fileUrl)
+                    .fileName(originalFilename)
                     .build();
 
             userResumeRepository.save(userResume);
