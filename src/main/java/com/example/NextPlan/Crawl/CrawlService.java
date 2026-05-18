@@ -60,13 +60,16 @@ public class CrawlService {
         WebDriver driver = null;
 
         try {
+            log.info("Crawling started. targetCount={}", TARGETS.size());
             WebDriverManager.chromedriver().setup();
             driver = createDriver();
 
             List<CrawledItem> items = new ArrayList<>();
 
             for (CrawlTarget target : TARGETS) {
+                log.info("Collecting crawl links. category={}, firstPageUrl={}", target.category(), target.url());
                 Set<String> detailUrls = collectLinksFromAllPages(driver, target.url());
+                log.info("Collected crawl links. category={}, count={}", target.category(), detailUrls.size());
 
                 for (String detailUrl : detailUrls) {
                     try {
@@ -77,7 +80,8 @@ public class CrawlService {
                 }
             }
 
-            saveCrawledItems(items);
+            int savedCount = saveCrawledItems(items);
+            log.info("Crawling finished. crawledCount={}, savedCount={}", items.size(), savedCount);
 
             return new CrawlResult(
                     OffsetDateTime.now(KOREA_ZONE),
@@ -101,7 +105,9 @@ public class CrawlService {
         }
     }
 
-    private void saveCrawledItems(List<CrawledItem> items) {
+    private int saveCrawledItems(List<CrawledItem> items) {
+        int savedCount = 0;
+
         for (CrawledItem item : items) {
             if (item.originUrl() == null || item.originUrl().isBlank()) {
                 continue;
@@ -157,7 +163,10 @@ public class CrawlService {
                             .build());
 
             externalActivityRepository.save(activity);
+            savedCount++;
         }
+
+        return savedCount;
     }
 
     private CrawledItem crawlDetail(CrawlTarget target, String detailUrl) throws Exception {
@@ -212,6 +221,7 @@ public class CrawlService {
         while (true) {
             String pageUrl = buildPageUrl(firstPageUrl, page);
             Set<String> pageLinks = collectLinksFromListPage(driver, pageUrl);
+            log.info("Collected links from page. page={}, url={}, pageLinkCount={}", page, pageUrl, pageLinks.size());
 
             int beforeSize = allLinks.size();
             allLinks.addAll(pageLinks);
