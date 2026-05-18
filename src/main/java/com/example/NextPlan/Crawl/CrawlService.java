@@ -411,99 +411,16 @@ public class CrawlService {
     }
     @Transactional(readOnly = true)
     public CrawlResponse getCrawlData(String category) {
-        // TODO: Restore this production DB lookup after crawl data is inserted.
-//        List<ExternalActivity> activities =
-//                category == null || category.isBlank()
-//                        ? externalActivityRepository.findAllByOrderByExtIdDesc()
-//                        : externalActivityRepository.findByCategoryOrderByExtIdDesc(category);
-//
-//        List<ActivityResponse> items = activities.stream()
-//                .map(this::toActivityResponse)
-//                .toList();
-//
-//        return new CrawlResponse(items.size(), items);
+        List<ExternalActivity> activities =
+                category == null || category.isBlank()
+                        ? externalActivityRepository.findAllByOrderByExtIdDesc()
+                        : externalActivityRepository.findByCategoryOrderByExtIdDesc(category);
 
-        return createDummyCrawlResponse(category);
-    }
-
-    private CrawlResponse createDummyCrawlResponse(String category) {
-        List<ActivityResponse> dummyItems = List.of(
-                new ActivityResponse(
-                        1,
-                        "activity",
-                        "[Dummy] AI experience volunteer supporters",
-                        "https://linkareer.com/activity/321187",
-                        "https://www.1365.go.kr/",
-                        "Public institution",
-                        "University students, young adults",
-                        LocalDate.of(2026, 5, 20),
-                        LocalDate.of(2026, 6, 15),
-                        "https://placehold.co/400x300?text=Activity",
-                        "Volunteer hours, certificate",
-                        "Outstanding participant award",
-                        LocalDate.of(2026, 6, 20),
-                        LocalDate.of(2026, 8, 20),
-                        10,
-                        "Seoul",
-                        "IT/AI",
-                        null,
-                        null,
-                        List.of("Java", "Spring Boot", "AI"),
-                        "A volunteer activity that provides AI experiences to teenagers through image editing, music postcard creation, and other hands-on programs."
-                ),
-                new ActivityResponse(
-                        2,
-                        "contest",
-                        "[Dummy] AI idea contest",
-                        "https://linkareer.com/activity/321188",
-                        "https://example.com/contest",
-                        "Large company",
-                        "University students",
-                        LocalDate.of(2026, 5, 10),
-                        LocalDate.of(2026, 6, 30),
-                        "https://placehold.co/400x300?text=Contest",
-                        "Certificate, prize money",
-                        "Recruitment bonus points",
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        "KRW 5,000,000",
-                        "Planning/Idea",
-                        List.of("Python", "AI", "Data Analysis"),
-                        "A contest for proposing creative AI-based ideas to solve social problems, evaluated by creativity and feasibility."
-                ),
-                new ActivityResponse(
-                        3,
-                        "club",
-                        "[Dummy] Developer union club recruitment",
-                        "https://linkareer.com/activity/321189",
-                        "https://example.com/club",
-                        "Club",
-                        "University students",
-                        LocalDate.of(2026, 5, 1),
-                        LocalDate.of(2026, 5, 31),
-                        "https://placehold.co/400x300?text=Club",
-                        "Project experience, networking",
-                        "Demo day participation",
-                        LocalDate.of(2026, 6, 1),
-                        LocalDate.of(2026, 12, 31),
-                        30,
-                        "Seoul/Online",
-                        "Development",
-                        null,
-                        null,
-                        List.of("React", "Spring Boot", "Git"),
-                        "A developer club focused on planning and building web/app services through team projects and code reviews."
-                )
-        );
-
-        List<ActivityResponse> filteredItems = dummyItems.stream()
-                .filter(item -> category == null || category.isBlank() || item.category().equals(category))
+        List<ActivityResponse> items = activities.stream()
+                .map(this::toActivityResponse)
                 .toList();
 
-        return new CrawlResponse(filteredItems.size(), filteredItems);
+        return new CrawlResponse(items.size(), items);
     }
 
     private ActivityResponse toActivityResponse(ExternalActivity activity) {
