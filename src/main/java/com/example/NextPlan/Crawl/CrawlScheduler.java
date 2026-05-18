@@ -14,7 +14,7 @@ public class CrawlScheduler {
     @Value("${app.crawl.schedule-enabled:false}")
     private boolean scheduleEnabled;
 
-    @Scheduled(cron = "0 0 3 * * MON", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 12 * * MON", zone = "Asia/Seoul")
     public void crawlWeekly() {
         if (!scheduleEnabled) {
             return;
