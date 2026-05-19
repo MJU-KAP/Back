@@ -42,7 +42,7 @@ public class SaveFileService {
     @Transactional
     public void saveFiles(UUID userId, List<MultipartFile> files) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         validateFiles(files);
 
@@ -63,7 +63,7 @@ public class SaveFileService {
     @Transactional(readOnly = true)
     public ResumeListResponse getMyResumes(UUID userId) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         List<ResumeResponse> resumes = userResumeRepository.findByUserId(userId)
                 .stream()

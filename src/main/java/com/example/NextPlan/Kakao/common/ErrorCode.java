@@ -8,6 +8,7 @@ public enum ErrorCode {
     ACCESS_TOKEN_EXPIRED("AUTH-401-001", "Access Token 만료", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED("AUTH-401-002", "Refresh Token 만료", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("AUTH-403-001", "권한 없음", HttpStatus.FORBIDDEN),
+    USER_NOT_FOUND("USER-404-001", "사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
     INVALID_REQUEST("COM-400-001", "필수 파라미터 누락 또는 잘못된 요청", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR("COM-500-001", "서버 내부 오류", HttpStatus.INTERNAL_SERVER_ERROR),
