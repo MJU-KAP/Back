@@ -1,6 +1,8 @@
 package com.example.NextPlan.Repository;
 
 import com.example.NextPlan.Entity.ExternalActivity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,4 +15,8 @@ public interface ExternalActivityRepository extends JpaRepository<ExternalActivi
     List<ExternalActivity> findAllByOrderByExtIdDesc();
 
     List<ExternalActivity> findByCategoryOrderByExtIdDesc(String category);
+
+    Page<ExternalActivity> findAllByOrderByExtIdDesc(Pageable pageable);
+
+    Page<ExternalActivity> findByCategoryOrderByExtIdDesc(String category, Pageable pageable);
 }
