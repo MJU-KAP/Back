@@ -9,6 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -33,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CrawlService {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
+    private static final int CRAWL_PAGE_SIZE = 30;
 
     private static final List<CrawlTarget> TARGETS = List.of(
             new CrawlTarget(
@@ -485,17 +489,28 @@ public class CrawlService {
     ) {
     }
     @Transactional(readOnly = true)
-    public CrawlResponse getCrawlData(String category) {
-        List<ExternalActivity> activities =
-                category == null || category.isBlank()
-                        ? externalActivityRepository.findAllByOrderByExtIdDesc()
-                        : externalActivityRepository.findByCategoryOrderByExtIdDesc(category);
+    public CrawlResponse getCrawlData(String category, int page) {
+        int requestedPage = Math.max(page, 1);
+        Pageable pageable = PageRequest.of(requestedPage - 1, CRAWL_PAGE_SIZE);
 
-        List<ActivityResponse> items = activities.stream()
+        Page<ExternalActivity> activities =
+                category == null || category.isBlank()
+                        ? externalActivityRepository.findAllByOrderByExtIdDesc(pageable)
+                        : externalActivityRepository.findByCategoryOrderByExtIdDesc(category, pageable);
+
+        List<ActivityResponse> items = activities.getContent().stream()
                 .map(this::toActivityResponse)
                 .toList();
 
-        return new CrawlResponse(items.size(), items);
+        return new CrawlResponse(
+                items.size(),
+                items,
+                requestedPage,
+                CRAWL_PAGE_SIZE,
+                activities.getTotalElements(),
+                activities.getTotalPages(),
+                activities.hasNext()
+        );
     }
 
     private ActivityResponse toActivityResponse(ExternalActivity activity) {
@@ -526,7 +541,12 @@ public class CrawlService {
 
     public record CrawlResponse(
             int count,
-            List<ActivityResponse> items
+            List<ActivityResponse> items,
+            int page,
+            int size,
+            long totalCount,
+            int totalPages,
+            boolean hasNext
     ) {
     }
 

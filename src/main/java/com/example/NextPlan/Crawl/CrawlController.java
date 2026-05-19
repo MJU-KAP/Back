@@ -18,9 +18,10 @@ public class CrawlController {
 
     @GetMapping
     public CrawlResponse getCrawlData(
-            @RequestParam(required = false) String category
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "1") int page
     ) {
-        return crawlService.getCrawlData(category);
+        return crawlService.getCrawlData(category, page);
     }
 
     @PostMapping("/refresh")
