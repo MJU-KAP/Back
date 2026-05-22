@@ -1,5 +1,6 @@
 package com.example.NextPlan.Analyze;
 
+import com.example.NextPlan.Analyze.AnalyzeResultController.AnalyzeResultDetailResponse;
 import com.example.NextPlan.Entity.AiAnalysisRecord;
 import com.example.NextPlan.Entity.UserResume;
 import com.example.NextPlan.Kakao.common.CustomException;
@@ -41,6 +42,24 @@ public class AnalyzeResultService {
         AiAnalysisRecord savedRecord = aiAnalysisRecordRepository.save(record);
 
         return AnalyzeResultResponse.from(savedRecord, resume);
+    }
+
+    @Transactional(readOnly = true)
+    public AnalyzeResultDetailResponse getAnalyzeResult(UUID userId, UUID analysisId) {
+        AiAnalysisRecord record = aiAnalysisRecordRepository.findById(analysisId)
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
+
+        if (!record.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        return new AnalyzeResultDetailResponse(
+                record.getRecordId(),
+                record.getAnalysisType(),
+                record.getInputSummary(),
+                record.getResult(),
+                record.getCreatedAt()
+        );
     }
 
     public record AnalyzeResultResponse(

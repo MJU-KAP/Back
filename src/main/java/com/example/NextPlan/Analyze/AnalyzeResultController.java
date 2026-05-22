@@ -6,10 +6,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/analyze/result")
@@ -32,6 +37,18 @@ public class AnalyzeResultController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{analysisId}")
+    public ResponseEntity<AnalyzeResultDetailResponse> getAnalyzeResult(
+            Authentication authentication,
+            @PathVariable UUID analysisId
+    ) {
+        UUID userId = UUID.fromString(authentication.getName());
+
+        AnalyzeResultDetailResponse response = analyzeResultService.getAnalyzeResult(userId, analysisId);
+
+        return ResponseEntity.ok(response);
+    }
+
     public record AnalyzeResultRequest(
             @NotNull(message = "resumeId is required")
             Integer resumeId,
@@ -43,6 +60,15 @@ public class AnalyzeResultController {
 
             @NotBlank(message = "result is required")
             String result
+    ) {
+    }
+
+    public record AnalyzeResultDetailResponse(
+            UUID recordId,
+            String analysisType,
+            String inputSummary,
+            String result,
+            java.time.OffsetDateTime createdAt
     ) {
     }
 }

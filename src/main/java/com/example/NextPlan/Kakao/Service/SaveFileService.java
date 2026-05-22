@@ -1,16 +1,24 @@
 package com.example.NextPlan.Kakao.Service;
 
+import com.example.NextPlan.Entity.AiAnalysisRecord;
+import com.example.NextPlan.Entity.User;
 import com.example.NextPlan.Entity.UserResume;
 import com.example.NextPlan.Kakao.common.CustomException;
 import com.example.NextPlan.Kakao.common.ErrorCode;
 import com.example.NextPlan.Kakao.controller.ReturnResumeController.ResumeListResponse;
 import com.example.NextPlan.Kakao.controller.ReturnResumeController.ResumeResponse;
+import com.example.NextPlan.Repository.AiAnalysisRecordRepository;
 import com.example.NextPlan.Repository.UserRepository;
 import com.example.NextPlan.Repository.UserResumeRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
@@ -18,16 +26,22 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SaveFileService {
 
     private final UserRepository userRepository;
     private final UserResumeRepository userResumeRepository;
+    private final AiAnalysisRecordRepository aiAnalysisRecordRepository;
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
@@ -35,20 +49,29 @@ public class SaveFileService {
     @Value("${aws.s3.region}")
     private String region;
 
+    @Value("${ai.server-url:}")
+    private String aiServerUrl;
+
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             "pdf", "docx", "txt", "png", "jpg", "jpeg"
     );
 
     @Transactional
-    public void saveFiles(UUID userId, List<MultipartFile> files) {
-        userRepository.findById(userId)
+    public UUID saveFiles(UUID userId, List<MultipartFile> files, String authorizationHeader) {
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         validateFiles(files);
+        String desiredJobRole = resolveDesiredJobRole(user);
+
+        List<String> uploadedFileNames = new ArrayList<>();
+        List<String> fileUrls = new ArrayList<>();
 
         for (MultipartFile file : files) {
             String originalFilename = file.getOriginalFilename();
             String fileUrl = uploadToS3(userId, file);
+            uploadedFileNames.add(originalFilename);
+            fileUrls.add(fileUrl);
 
             UserResume userResume = UserResume.builder()
                     .userId(userId)
@@ -58,6 +81,20 @@ public class SaveFileService {
 
             userResumeRepository.save(userResume);
         }
+
+        AiAnalysisRecord analysisRecord = AiAnalysisRecord.builder()
+                .userId(userId)
+                .analysisType("RESUME")
+                .inputSummary(String.join(", ", uploadedFileNames))
+                .result("{}")
+                .createdAt(OffsetDateTime.now())
+                .build();
+
+        UUID analysisId = aiAnalysisRecordRepository.save(analysisRecord).getRecordId();
+
+        requestAiAnalysis(authorizationHeader, analysisId, desiredJobRole, fileUrls);
+
+        return analysisId;
     }
 
     @Transactional(readOnly = true)
@@ -142,5 +179,58 @@ public class SaveFileService {
         }
 
         return filename.substring(dotIndex + 1).toLowerCase();
+    }
+
+    private void requestAiAnalysis(
+            String authorizationHeader,
+            UUID analysisId,
+            String desiredJobRole,
+            List<String> fileUrls
+    ) {
+        if (!StringUtils.hasText(aiServerUrl)) {
+            log.warn("AI server request skipped. ai.server-url is empty. analysisId={}", analysisId);
+            return;
+        }
+
+        log.info(
+                "Requesting AI analysis. analysisId={}, desiredJobRole={}, fileCount={}, aiServerUrl={}",
+                analysisId,
+                desiredJobRole,
+                fileUrls.size(),
+                aiServerUrl
+        );
+
+        AiAnalysisRequest request = new AiAnalysisRequest(desiredJobRole, fileUrls);
+
+        String responseBody = webClientBuilder.build()
+                .post()
+                .uri(aiServerUrl)
+                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
+    }
+
+    private record AiAnalysisRequest(
+            String desiredJobRole,
+            List<String> fileUrls
+    ) {
+    }
+
+    private String resolveDesiredJobRole(User user) {
+        String[] desiredJobs = user.getDesiredJobs();
+
+        if (desiredJobs == null) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
+
+        return Arrays.stream(desiredJobs)
+                .filter(StringUtils::hasText)
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
     }
 }
