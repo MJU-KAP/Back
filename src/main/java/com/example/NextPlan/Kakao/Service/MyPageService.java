@@ -79,7 +79,6 @@ public class MyPageService {
             UUID recordId,
             String analysisType,
             String inputSummary,
-            String result,
             OffsetDateTime createdAt
     ) {
         public static AnalysisRecordResponse from(AiAnalysisRecord record) {
@@ -87,7 +86,6 @@ public class MyPageService {
                     record.getRecordId(),
                     record.getAnalysisType(),
                     record.getInputSummary(),
-                    record.getResult(),
                     record.getCreatedAt()
             );
         }

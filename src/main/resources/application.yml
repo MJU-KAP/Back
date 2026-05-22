@@ -48,3 +48,6 @@ aws:
   s3:
     bucket-name: ${AWS_BUCKET_NAME:nextplan-resume}
     region: ${AWS_REGION:ap-northeast-2}
+
+ai:
+  server-url: ${AI_SERVER_URL:https://expansive-undertone-sterilize.ngrok-free.dev/api/analyze}
