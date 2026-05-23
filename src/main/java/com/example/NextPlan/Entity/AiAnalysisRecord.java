@@ -48,4 +48,8 @@ public class AiAnalysisRecord {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
+
+    public void updateResult(String result) {
+        this.result = result;
+    }
 }
