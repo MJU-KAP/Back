@@ -22,10 +22,14 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,17 +69,17 @@ public class SaveFileService {
         String desiredJobRole = resolveDesiredJobRole(user);
 
         List<String> uploadedFileNames = new ArrayList<>();
-        List<String> fileUrls = new ArrayList<>();
+        List<String> presignedFileUrls = new ArrayList<>();
 
         for (MultipartFile file : files) {
             String originalFilename = file.getOriginalFilename();
-            String fileUrl = uploadToS3(userId, file);
+            UploadedFile uploadedFile = uploadToS3(userId, file);
             uploadedFileNames.add(originalFilename);
-            fileUrls.add(fileUrl);
+            presignedFileUrls.add(createPresignedUrl(uploadedFile.key()));
 
             UserResume userResume = UserResume.builder()
                     .userId(userId)
-                    .fileUrl(fileUrl)
+                    .fileUrl(uploadedFile.fileUrl())
                     .fileName(originalFilename)
                     .build();
 
@@ -92,7 +96,8 @@ public class SaveFileService {
 
         UUID analysisId = aiAnalysisRecordRepository.save(analysisRecord).getRecordId();
 
-        requestAiAnalysis(authorizationHeader, analysisId, desiredJobRole, fileUrls);
+        String responseBody = requestAiAnalysis(authorizationHeader, analysisId, desiredJobRole, presignedFileUrls);
+        analysisRecord.updateResult(responseBody);
 
         return analysisId;
     }
@@ -115,7 +120,7 @@ public class SaveFileService {
         return new ResumeListResponse(resumes);
     }
 
-    private String uploadToS3(UUID userId, MultipartFile file) {
+    private UploadedFile uploadToS3(UUID userId, MultipartFile file) {
         try (S3Client s3Client = S3Client.builder()
                 .region(Region.of(region))
                 .build()) {
@@ -136,7 +141,9 @@ public class SaveFileService {
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
 
-            return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+            String fileUrl = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+
+            return new UploadedFile(key, fileUrl);
 
         } catch (IOException e) {
             throw new RuntimeException("File upload failed.", e);
@@ -181,7 +188,7 @@ public class SaveFileService {
         return filename.substring(dotIndex + 1).toLowerCase();
     }
 
-    private void requestAiAnalysis(
+    private String requestAiAnalysis(
             String authorizationHeader,
             UUID analysisId,
             String desiredJobRole,
@@ -189,7 +196,7 @@ public class SaveFileService {
     ) {
         if (!StringUtils.hasText(aiServerUrl)) {
             log.warn("AI server request skipped. ai.server-url is empty. analysisId={}", analysisId);
-            return;
+            return "{}";
         }
 
         log.info(
@@ -213,12 +220,39 @@ public class SaveFileService {
                 .block();
 
         log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
+
+        return responseBody == null ? "{}" : responseBody;
     }
 
     private record AiAnalysisRequest(
             String desiredJobRole,
             List<String> fileUrls
     ) {
+    }
+
+    private record UploadedFile(
+            String key,
+            String fileUrl
+    ) {
+    }
+
+    private String createPresignedUrl(String key) {
+        try (S3Presigner presigner = S3Presigner.builder()
+                .region(Region.of(region))
+                .build()) {
+
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(30))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            return presigner.presignGetObject(presignRequest).url().toString();
+        }
     }
 
     private String resolveDesiredJobRole(User user) {
