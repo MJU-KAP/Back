@@ -256,15 +256,19 @@ public class SaveFileService {
     }
 
     private String resolveDesiredJobRole(User user) {
-        String[] desiredJobs = user.getDesiredJobs();
+        // TODO: Restore this block after the profile preference API is connected.
+        // String[] desiredJobs = user.getDesiredJobs();
+        //
+        // if (desiredJobs == null) {
+        //     throw new CustomException(ErrorCode.INVALID_REQUEST);
+        // }
+        //
+        // return Arrays.stream(desiredJobs)
+        //         .filter(StringUtils::hasText)
+        //         .findFirst()
+        //         .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
 
-        if (desiredJobs == null) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST);
-        }
-
-        return Arrays.stream(desiredJobs)
-                .filter(StringUtils::hasText)
-                .findFirst()
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
+        log.warn("Using dummy desiredJobRole for file upload test. userId={}", user.getUserId());
+        return "Backend";
     }
 }
