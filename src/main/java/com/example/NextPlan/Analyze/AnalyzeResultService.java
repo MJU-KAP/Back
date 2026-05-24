@@ -7,9 +7,13 @@ import com.example.NextPlan.Kakao.common.CustomException;
 import com.example.NextPlan.Kakao.common.ErrorCode;
 import com.example.NextPlan.Repository.AiAnalysisRecordRepository;
 import com.example.NextPlan.Repository.UserResumeRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -20,6 +24,7 @@ public class AnalyzeResultService {
 
     private final UserResumeRepository userResumeRepository;
     private final AiAnalysisRecordRepository aiAnalysisRecordRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public AnalyzeResultResponse saveAnalyzeResult(
@@ -41,7 +46,7 @@ public class AnalyzeResultService {
 
         AiAnalysisRecord savedRecord = aiAnalysisRecordRepository.save(record);
 
-        return AnalyzeResultResponse.from(savedRecord, resume);
+        return AnalyzeResultResponse.from(savedRecord, resume, parseResult(savedRecord.getResult()));
     }
 
     @Transactional(readOnly = true)
@@ -57,9 +62,21 @@ public class AnalyzeResultService {
                 record.getRecordId(),
                 record.getAnalysisType(),
                 record.getInputSummary(),
-                record.getResult(),
+                parseResult(record.getResult()),
                 record.getCreatedAt()
         );
+    }
+
+    private JsonNode parseResult(String result) {
+        if (!StringUtils.hasText(result)) {
+            return objectMapper.createObjectNode();
+        }
+
+        try {
+            return objectMapper.readTree(result);
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
     }
 
     public record AnalyzeResultResponse(
@@ -69,10 +86,10 @@ public class AnalyzeResultService {
             String fileName,
             String analysisType,
             String inputSummary,
-            String result,
+            JsonNode result,
             OffsetDateTime createdAt
     ) {
-        public static AnalyzeResultResponse from(AiAnalysisRecord record, UserResume resume) {
+        public static AnalyzeResultResponse from(AiAnalysisRecord record, UserResume resume, JsonNode result) {
             return new AnalyzeResultResponse(
                     record.getRecordId(),
                     resume.getResumeId(),
@@ -80,7 +97,7 @@ public class AnalyzeResultService {
                     resume.getFileName(),
                     record.getAnalysisType(),
                     record.getInputSummary(),
-                    record.getResult(),
+                    result,
                     record.getCreatedAt()
             );
         }
