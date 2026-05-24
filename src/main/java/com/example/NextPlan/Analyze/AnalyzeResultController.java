@@ -1,6 +1,7 @@
 package com.example.NextPlan.Analyze;
 
 import com.example.NextPlan.Analyze.AnalyzeResultService.AnalyzeResultResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -67,7 +68,7 @@ public class AnalyzeResultController {
             UUID recordId,
             String analysisType,
             String inputSummary,
-            String result,
+            JsonNode result,
             java.time.OffsetDateTime createdAt
     ) {
     }
