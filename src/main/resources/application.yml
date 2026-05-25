@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: NextPlan
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME:postgres}
