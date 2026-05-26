@@ -22,8 +22,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -89,7 +89,7 @@ public class SaveFileService {
         AiAnalysisRecord analysisRecord = AiAnalysisRecord.builder()
                 .userId(userId)
                 .analysisType("RESUME")
-                .inputSummary(String.join(", ", uploadedFileNames))
+                .inputSummary(createAnalysisLabel(desiredJobRole, "RESUME"))
                 .result("{}")
                 .createdAt(OffsetDateTime.now())
                 .build();
@@ -266,5 +266,17 @@ public class SaveFileService {
                 .filter(StringUtils::hasText)
                 .findFirst()
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
+    }
+
+    private String createAnalysisLabel(String desiredJobRole, String analysisType) {
+        return desiredJobRole + " " + toAnalysisTypeLabel(analysisType) + " \uBD84\uC11D";
+    }
+
+    private String toAnalysisTypeLabel(String analysisType) {
+        if ("RESUME".equals(analysisType)) {
+            return "\uC774\uB825\uC11C";
+        }
+
+        return analysisType;
     }
 }
