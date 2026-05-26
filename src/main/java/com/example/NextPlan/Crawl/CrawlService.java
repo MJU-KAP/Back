@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CrawlService {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
-    private static final int CRAWL_PAGE_SIZE = 30;
+    private static final int DEFAULT_BOARD_PAGE_SIZE = 20;
 
     private static final List<CrawlTarget> TARGETS = List.of(
             new CrawlTarget(
@@ -489,14 +489,12 @@ public class CrawlService {
     ) {
     }
     @Transactional(readOnly = true)
-    public CrawlResponse getCrawlData(String category, int page) {
+    public CrawlResponse getCrawlData(String category, int page, int size, String sort) {
         int requestedPage = Math.max(page, 1);
-        Pageable pageable = PageRequest.of(requestedPage - 1, CRAWL_PAGE_SIZE);
+        int requestedSize = normalizePageSize(size);
+        Pageable pageable = PageRequest.of(requestedPage - 1, requestedSize);
 
-        Page<ExternalActivity> activities =
-                category == null || category.isBlank()
-                        ? externalActivityRepository.findAllByOrderByExtIdDesc(pageable)
-                        : externalActivityRepository.findByCategoryOrderByExtIdDesc(category, pageable);
+        Page<ExternalActivity> activities = findActivities(category, sort, pageable);
 
         List<ActivityResponse> items = activities.getContent().stream()
                 .map(this::toActivityResponse)
@@ -506,11 +504,62 @@ public class CrawlService {
                 items.size(),
                 items,
                 requestedPage,
-                CRAWL_PAGE_SIZE,
+                requestedSize,
                 activities.getTotalElements(),
                 activities.getTotalPages(),
                 activities.hasNext()
         );
+    }
+
+    private int normalizePageSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_BOARD_PAGE_SIZE;
+        }
+
+        return Math.min(size, 100);
+    }
+
+    private Page<ExternalActivity> findActivities(String category, String sort, Pageable pageable) {
+        String normalizedCategory = normalizeCategory(category);
+        String normalizedSort = sort == null ? "latest" : sort.trim().toLowerCase();
+        LocalDate today = LocalDate.now(KOREA_ZONE);
+
+        if (isDeadlineAscSort(normalizedSort)) {
+            return normalizedCategory == null
+                    ? externalActivityRepository.findByRecruitEndDateGreaterThanEqualOrderByRecruitEndDateAscExtIdDesc(today, pageable)
+                    : externalActivityRepository.findByCategoryAndRecruitEndDateGreaterThanEqualOrderByRecruitEndDateAscExtIdDesc(normalizedCategory, today, pageable);
+        }
+
+        if (isDeadlineDescSort(normalizedSort)) {
+            return normalizedCategory == null
+                    ? externalActivityRepository.findByRecruitEndDateGreaterThanEqualOrderByRecruitEndDateDescExtIdDesc(today, pageable)
+                    : externalActivityRepository.findByCategoryAndRecruitEndDateGreaterThanEqualOrderByRecruitEndDateDescExtIdDesc(normalizedCategory, today, pageable);
+        }
+
+        return normalizedCategory == null
+                ? externalActivityRepository.findAllByOrderByExtIdDesc(pageable)
+                : externalActivityRepository.findByCategoryOrderByExtIdDesc(normalizedCategory, pageable);
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null || category.isBlank()) {
+            return null;
+        }
+
+        return category.trim();
+    }
+
+    private boolean isDeadlineAscSort(String sort) {
+        return sort.equals("deadline")
+                || sort.equals("deadline_asc")
+                || sort.equals("recruit_end_date_asc")
+                || sort.equals("remaining_asc");
+    }
+
+    private boolean isDeadlineDescSort(String sort) {
+        return sort.equals("deadline_desc")
+                || sort.equals("recruit_end_date_desc")
+                || sort.equals("remaining_desc");
     }
 
     private ActivityResponse toActivityResponse(ExternalActivity activity) {

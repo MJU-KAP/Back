@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/crawl")
+@RequestMapping({"/api/crawl", "/api/boards"})
 @RequiredArgsConstructor
 public class CrawlController {
 
@@ -19,9 +19,11 @@ public class CrawlController {
     @GetMapping
     public CrawlResponse getCrawlData(
             @RequestParam(required = false) String category,
-            @RequestParam(defaultValue = "1") int page
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "latest") String sort
     ) {
-        return crawlService.getCrawlData(category, page);
+        return crawlService.getCrawlData(category, page, size, sort);
     }
 
     @PostMapping("/refresh")
