@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,4 +20,26 @@ public interface ExternalActivityRepository extends JpaRepository<ExternalActivi
     Page<ExternalActivity> findAllByOrderByExtIdDesc(Pageable pageable);
 
     Page<ExternalActivity> findByCategoryOrderByExtIdDesc(String category, Pageable pageable);
+
+    Page<ExternalActivity> findByRecruitEndDateGreaterThanEqualOrderByRecruitEndDateAscExtIdDesc(
+            LocalDate today,
+            Pageable pageable
+    );
+
+    Page<ExternalActivity> findByCategoryAndRecruitEndDateGreaterThanEqualOrderByRecruitEndDateAscExtIdDesc(
+            String category,
+            LocalDate today,
+            Pageable pageable
+    );
+
+    Page<ExternalActivity> findByRecruitEndDateGreaterThanEqualOrderByRecruitEndDateDescExtIdDesc(
+            LocalDate today,
+            Pageable pageable
+    );
+
+    Page<ExternalActivity> findByCategoryAndRecruitEndDateGreaterThanEqualOrderByRecruitEndDateDescExtIdDesc(
+            String category,
+            LocalDate today,
+            Pageable pageable
+    );
 }
