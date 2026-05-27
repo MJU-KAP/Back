@@ -3,7 +3,6 @@ package com.example.NextPlan.Kakao.Service;
 import com.example.NextPlan.Entity.AiAnalysisRecord;
 import com.example.NextPlan.Entity.User;
 import com.example.NextPlan.Entity.UserResume;
-import com.example.NextPlan.Kakao.common.AiServerException;
 import com.example.NextPlan.Kakao.common.CustomException;
 import com.example.NextPlan.Kakao.common.ErrorCode;
 import com.example.NextPlan.Kakao.controller.ReturnResumeController.ResumeListResponse;
@@ -14,14 +13,11 @@ import com.example.NextPlan.Repository.UserResumeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
@@ -45,23 +41,21 @@ import java.util.UUID;
 @Slf4j
 public class SaveFileService {
 
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            "pdf", "docx", "txt", "png", "jpg", "jpeg"
+    );
+    private static final String PROCESSING_RESULT = "{\"status\":\"processing\"}";
+
     private final UserRepository userRepository;
     private final UserResumeRepository userResumeRepository;
     private final AiAnalysisRecordRepository aiAnalysisRecordRepository;
-    private final WebClient.Builder webClientBuilder;
+    private final AiAnalysisAsyncService aiAnalysisAsyncService;
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
 
     @Value("${aws.s3.region}")
     private String region;
-
-    @Value("${ai.server-url:}")
-    private String aiServerUrl;
-
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "docx", "txt", "png", "jpg", "jpeg"
-    );
 
     @Transactional
     public UUID saveFiles(UUID userId, List<MultipartFile> files, String authorizationHeader) {
@@ -93,14 +87,18 @@ public class SaveFileService {
                 .userId(userId)
                 .analysisType("RESUME")
                 .inputSummary(createAnalysisLabel(desiredJobRole, "RESUME"))
-                .result("{}")
+                .result(PROCESSING_RESULT)
                 .createdAt(OffsetDateTime.now())
                 .build();
 
         UUID analysisId = aiAnalysisRecordRepository.save(analysisRecord).getRecordId();
 
-        String responseBody = requestAiAnalysis(authorizationHeader, analysisId, desiredJobRole, presignedFileUrls);
-        analysisRecord.updateResult(responseBody);
+        scheduleAiAnalysisAfterCommit(
+                analysisId,
+                authorizationHeader,
+                desiredJobRole,
+                List.copyOf(presignedFileUrls)
+        );
 
         return analysisId;
     }
@@ -164,7 +162,7 @@ public class SaveFileService {
     }
 
     private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+        if (file == null || file.isEmpty() || file.getSize() <= 0) {
             throw new IllegalArgumentException("Empty files cannot be uploaded.");
         }
 
@@ -191,101 +189,30 @@ public class SaveFileService {
         return filename.substring(dotIndex + 1).toLowerCase();
     }
 
-    private String requestAiAnalysis(
-            String authorizationHeader,
+    private void scheduleAiAnalysisAfterCommit(
             UUID analysisId,
+            String authorizationHeader,
             String desiredJobRole,
             List<String> fileUrls
     ) {
-        if (!StringUtils.hasText(aiServerUrl)) {
-            log.warn("AI server request skipped. ai.server-url is empty. analysisId={}", analysisId);
-            return "{}";
-        }
-
-        log.info(
-                "Requesting AI analysis. analysisId={}, desiredJobRole={}, fileCount={}, aiServerUrl={}",
+        Runnable task = () -> aiAnalysisAsyncService.requestAndSaveAnalysis(
                 analysisId,
+                authorizationHeader,
                 desiredJobRole,
-                fileUrls.size(),
-                aiServerUrl
+                fileUrls
         );
 
-        AiAnalysisRequest request = new AiAnalysisRequest(desiredJobRole, fileUrls);
-
-        try {
-            String responseBody = webClientBuilder.build()
-                    .post()
-                    .uri(aiServerUrl)
-                    .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .timeout(Duration.ofMinutes(3))
-                    .block();
-
-            log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
-
-            return responseBody == null ? "{}" : responseBody;
-        } catch (WebClientResponseException e) {
-            String responseBody = normalizeAiErrorBody(e.getResponseBodyAsString());
-            log.warn(
-                    "AI server returned error. analysisId={}, status={}, responseBody={}",
-                    analysisId,
-                    e.getStatusCode(),
-                    responseBody
-            );
-
-            throw new AiServerException(e.getStatusCode(), responseBody, e);
-        } catch (RuntimeException e) {
-            String responseBody = """
-                    {"status":"error","code":"AI_SERVER_CONNECTION_FAILED","message":"AI 분석 서버 호출에 실패했습니다."}
-                    """.trim();
-            log.warn("AI server request failed. analysisId={}, responseBody={}", analysisId, responseBody, e);
-
-            throw new AiServerException(HttpStatus.BAD_GATEWAY, responseBody, e);
-        }
-    }
-
-    private String normalizeAiErrorBody(String responseBody) {
-        if (StringUtils.hasText(responseBody)) {
-            return responseBody;
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
         }
 
-        return """
-                {"status":"error","code":"AI_SERVER_ERROR","message":"AI 분석 서버 오류가 발생했습니다."}
-                """.trim();
-    }
-
-    private record AiAnalysisRequest(
-            String desiredJobRole,
-            List<String> fileUrls
-    ) {
-    }
-
-    private record UploadedFile(
-            String key,
-            String fileUrl
-    ) {
-    }
-
-    private String createPresignedUrl(String key) {
-        try (S3Presigner presigner = S3Presigner.builder()
-                .region(Region.of(region))
-                .build()) {
-
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .build();
-
-            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                    .signatureDuration(Duration.ofMinutes(30))
-                    .getObjectRequest(getObjectRequest)
-                    .build();
-
-            return presigner.presignGetObject(presignRequest).url().toString();
-        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 
     private String resolveDesiredJobRole(User user) {
@@ -311,5 +238,30 @@ public class SaveFileService {
         }
 
         return analysisType;
+    }
+
+    private record UploadedFile(
+            String key,
+            String fileUrl
+    ) {
+    }
+
+    private String createPresignedUrl(String key) {
+        try (S3Presigner presigner = S3Presigner.builder()
+                .region(Region.of(region))
+                .build()) {
+
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(30))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            return presigner.presignGetObject(presignRequest).url().toString();
+        }
     }
 }
