@@ -3,6 +3,7 @@ package com.example.NextPlan.Kakao.Service;
 import com.example.NextPlan.Entity.AiAnalysisRecord;
 import com.example.NextPlan.Entity.User;
 import com.example.NextPlan.Entity.UserResume;
+import com.example.NextPlan.Kakao.common.AiServerException;
 import com.example.NextPlan.Kakao.common.CustomException;
 import com.example.NextPlan.Kakao.common.ErrorCode;
 import com.example.NextPlan.Kakao.controller.ReturnResumeController.ResumeListResponse;
@@ -14,11 +15,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
@@ -209,19 +212,49 @@ public class SaveFileService {
 
         AiAnalysisRequest request = new AiAnalysisRequest(desiredJobRole, fileUrls);
 
-        String responseBody = webClientBuilder.build()
-                .post()
-                .uri(aiServerUrl)
-                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+        try {
+            String responseBody = webClientBuilder.build()
+                    .post()
+                    .uri(aiServerUrl)
+                    .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(120))
+                    .block();
 
-        log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
+            log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
 
-        return responseBody == null ? "{}" : responseBody;
+            return responseBody == null ? "{}" : responseBody;
+        } catch (WebClientResponseException e) {
+            String responseBody = normalizeAiErrorBody(e.getResponseBodyAsString());
+            log.warn(
+                    "AI server returned error. analysisId={}, status={}, responseBody={}",
+                    analysisId,
+                    e.getStatusCode(),
+                    responseBody
+            );
+
+            throw new AiServerException(e.getStatusCode(), responseBody, e);
+        } catch (RuntimeException e) {
+            String responseBody = """
+                    {"status":"error","code":"AI_SERVER_CONNECTION_FAILED","message":"AI 분석 서버 호출에 실패했습니다."}
+                    """.trim();
+            log.warn("AI server request failed. analysisId={}, responseBody={}", analysisId, responseBody, e);
+
+            throw new AiServerException(HttpStatus.BAD_GATEWAY, responseBody, e);
+        }
+    }
+
+    private String normalizeAiErrorBody(String responseBody) {
+        if (StringUtils.hasText(responseBody)) {
+            return responseBody;
+        }
+
+        return """
+                {"status":"error","code":"AI_SERVER_ERROR","message":"AI 분석 서버 오류가 발생했습니다."}
+                """.trim();
     }
 
     private record AiAnalysisRequest(
