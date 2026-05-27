@@ -2,6 +2,7 @@ package com.example.NextPlan.Kakao.common;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,6 +31,21 @@ public class GlobalExceptionHandler {
                 "code", ErrorCode.INVALID_REQUEST.getCode(),
                 "message", ErrorCode.INVALID_REQUEST.getMessage()
         ));
+    }
+
+    @ExceptionHandler(AiServerException.class)
+    public ResponseEntity<String> handleAiServerException(AiServerException e) {
+        log.warn(
+                "AI server exception. status={}, responseBody={}",
+                e.getStatusCode(),
+                e.getResponseBody(),
+                e
+        );
+
+        return ResponseEntity
+                .status(e.getStatusCode())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(e.getResponseBody());
     }
 
     @ExceptionHandler(Exception.class)
