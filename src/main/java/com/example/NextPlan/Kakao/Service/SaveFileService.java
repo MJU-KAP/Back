@@ -221,7 +221,7 @@ public class SaveFileService {
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(120))
+                    .timeout(Duration.ofMinutes(3))
                     .block();
 
             log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
