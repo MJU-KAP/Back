@@ -45,6 +45,7 @@ public class SaveFileService {
             "pdf", "docx", "txt", "png", "jpg", "jpeg"
     );
     private static final String PROCESSING_RESULT = "{\"status\":\"processing\"}";
+    private static final String STATUS_PROCESSING = "PROCESSING";
 
     private final UserRepository userRepository;
     private final UserResumeRepository userResumeRepository;
@@ -65,13 +66,12 @@ public class SaveFileService {
         validateFiles(files);
         String desiredJobRole = resolveDesiredJobRole(user);
 
-        List<String> uploadedFileNames = new ArrayList<>();
         List<String> presignedFileUrls = new ArrayList<>();
+        List<Integer> savedResumeIds = new ArrayList<>();
 
         for (MultipartFile file : files) {
             String originalFilename = file.getOriginalFilename();
             UploadedFile uploadedFile = uploadToS3(userId, file);
-            uploadedFileNames.add(originalFilename);
             presignedFileUrls.add(createPresignedUrl(uploadedFile.key()));
 
             UserResume userResume = UserResume.builder()
@@ -80,13 +80,16 @@ public class SaveFileService {
                     .fileName(originalFilename)
                     .build();
 
-            userResumeRepository.save(userResume);
+            UserResume savedResume = userResumeRepository.save(userResume);
+            savedResumeIds.add(savedResume.getResumeId());
         }
 
         AiAnalysisRecord analysisRecord = AiAnalysisRecord.builder()
                 .userId(userId)
                 .analysisType("RESUME")
+                .resumeId(getRepresentativeResumeId(savedResumeIds))
                 .inputSummary(createAnalysisLabel(desiredJobRole, "RESUME"))
+                .status(STATUS_PROCESSING)
                 .result(PROCESSING_RESULT)
                 .createdAt(OffsetDateTime.now())
                 .build();
@@ -101,6 +104,14 @@ public class SaveFileService {
         );
 
         return analysisId;
+    }
+
+    private Integer getRepresentativeResumeId(List<Integer> resumeIds) {
+        if (resumeIds.isEmpty()) {
+            throw new CustomException(ErrorCode.INVALID_REQUEST);
+        }
+
+        return resumeIds.get(0);
     }
 
     @Transactional(readOnly = true)

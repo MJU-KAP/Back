@@ -40,8 +40,14 @@ public class AiAnalysisRecord {
     @Column(name = "analysis_type", nullable = false, length = 100)
     private String analysisType;
 
+    @Column(name = "resume_id")
+    private Integer resumeId;
+
     @Column(name = "input_summary", columnDefinition = "TEXT")
     private String inputSummary;
+
+    @Column(name = "status", nullable = false, length = 20)
+    private String status;
 
     @Column(name = "result", nullable = false, columnDefinition = "TEXT")
     private String result;
@@ -51,5 +57,14 @@ public class AiAnalysisRecord {
 
     public void updateResult(String result) {
         this.result = result;
+    }
+
+    public void updateStatus(String status) {
+        this.status = status;
+    }
+
+    public void updateResultAndStatus(String result, String status) {
+        this.result = result;
+        this.status = status;
     }
 }

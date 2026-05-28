@@ -21,12 +21,13 @@ import org.springframework.util.StringUtils;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.IntStream;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,17 +54,15 @@ public class MyPageService {
                 .map(ResumeResponse::from)
                 .toList();
 
-        List<String> fallbackFileNames = resumes.stream()
-                .sorted(Comparator.comparing(ResumeResponse::resumeId).reversed())
-                .map(ResumeResponse::fileName)
-                .filter(StringUtils::hasText)
-                .toList();
+        Map<Integer, ResumeResponse> resumeMap = resumes.stream()
+                .collect(Collectors.toMap(
+                        ResumeResponse::resumeId,
+                        Function.identity(),
+                        (first, second) -> first
+                ));
 
-        List<AnalysisRecordResponse> analysisRecords = IntStream.range(0, records.size())
-                .mapToObj(index -> createAnalysisRecordResponse(
-                        records.get(index),
-                        getFallbackFileName(fallbackFileNames, index)
-                ))
+        List<AnalysisRecordResponse> analysisRecords = records.stream()
+                .map(record -> createAnalysisRecordResponse(record, resumeMap))
                 .toList();
 
         String desiredJobRole = getDesiredJobRole(user);
@@ -107,26 +106,22 @@ public class MyPageService {
 
     private AnalysisRecordResponse createAnalysisRecordResponse(
             AiAnalysisRecord record,
-            String fallbackFileName
+            Map<Integer, ResumeResponse> resumeMap
     ) {
+        ResumeResponse resume = record.getResumeId() == null ? null : resumeMap.get(record.getResumeId());
+        String fallbackFileName = resume == null ? null : resume.fileName();
         String fileName = getRepresentativeFileName(record.getInputSummary(), fallbackFileName);
 
         return new AnalysisRecordResponse(
                 record.getRecordId(),
+                record.getResumeId(),
                 record.getAnalysisType(),
                 getDisplayInputSummary(record.getInputSummary(), fileName),
                 fileName,
+                record.getStatus(),
                 extractTags(record.getResult()),
                 record.getCreatedAt()
         );
-    }
-
-    private String getFallbackFileName(List<String> fileNames, int index) {
-        if (index >= fileNames.size()) {
-            return null;
-        }
-
-        return fileNames.get(index);
     }
 
     private String getDisplayInputSummary(String inputSummary, String fileName) {
@@ -216,9 +211,11 @@ public class MyPageService {
 
     public record AnalysisRecordResponse(
             UUID recordId,
+            Integer resumeId,
             String analysisType,
             String inputSummary,
             String fileName,
+            String status,
             List<String> tags,
             OffsetDateTime createdAt
     ) {

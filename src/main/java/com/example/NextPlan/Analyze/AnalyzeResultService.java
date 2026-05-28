@@ -22,6 +22,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AnalyzeResultService {
 
+    private static final String STATUS_SUCCESS = "SUCCESS";
+
     private final UserResumeRepository userResumeRepository;
     private final AiAnalysisRecordRepository aiAnalysisRecordRepository;
     private final ObjectMapper objectMapper;
@@ -38,8 +40,10 @@ public class AnalyzeResultService {
 
         AiAnalysisRecord record = AiAnalysisRecord.builder()
                 .userId(resume.getUserId())
+                .resumeId(resume.getResumeId())
                 .analysisType(analysisType)
                 .inputSummary(inputSummary)
+                .status(STATUS_SUCCESS)
                 .result(result)
                 .createdAt(OffsetDateTime.now())
                 .build();
@@ -58,13 +62,29 @@ public class AnalyzeResultService {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
 
+        UserResume resume = findResume(record);
+
         return new AnalyzeResultDetailResponse(
                 record.getRecordId(),
+                record.getResumeId(),
+                resume == null ? null : resume.getFileName(),
                 record.getAnalysisType(),
                 record.getInputSummary(),
+                record.getStatus(),
                 parseResult(record.getResult()),
                 record.getCreatedAt()
         );
+    }
+
+    private UserResume findResume(AiAnalysisRecord record) {
+        Integer resumeId = record.getResumeId();
+
+        if (resumeId == null) {
+            return null;
+        }
+
+        return userResumeRepository.findById(resumeId)
+                .orElse(null);
     }
 
     private JsonNode parseResult(String result) {
@@ -86,6 +106,7 @@ public class AnalyzeResultService {
             String fileName,
             String analysisType,
             String inputSummary,
+            String status,
             JsonNode result,
             OffsetDateTime createdAt
     ) {
@@ -97,6 +118,7 @@ public class AnalyzeResultService {
                     resume.getFileName(),
                     record.getAnalysisType(),
                     record.getInputSummary(),
+                    record.getStatus(),
                     result,
                     record.getCreatedAt()
             );
