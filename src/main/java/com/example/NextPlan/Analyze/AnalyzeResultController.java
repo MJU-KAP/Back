@@ -66,8 +66,11 @@ public class AnalyzeResultController {
 
     public record AnalyzeResultDetailResponse(
             UUID recordId,
+            Integer resumeId,
+            String fileName,
             String analysisType,
             String inputSummary,
+            String status,
             JsonNode result,
             java.time.OffsetDateTime createdAt
     ) {

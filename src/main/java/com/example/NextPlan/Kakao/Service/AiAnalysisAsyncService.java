@@ -26,6 +26,9 @@ import java.util.UUID;
 @Slf4j
 public class AiAnalysisAsyncService {
 
+    private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String STATUS_FAILED = "FAILED";
+
     private final AiAnalysisRecordRepository aiAnalysisRecordRepository;
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
@@ -49,11 +52,11 @@ public class AiAnalysisAsyncService {
             return;
         }
 
-        String responseBody = requestAiAnalysis(authorizationHeader, analysisId, desiredJobRole, fileUrls);
-        analysisRecord.updateResult(responseBody);
+        AiAnalysisResult result = requestAiAnalysis(authorizationHeader, analysisId, desiredJobRole, fileUrls);
+        analysisRecord.updateResultAndStatus(result.responseBody(), result.status());
     }
 
-    private String requestAiAnalysis(
+    private AiAnalysisResult requestAiAnalysis(
             String authorizationHeader,
             UUID analysisId,
             String desiredJobRole,
@@ -61,11 +64,11 @@ public class AiAnalysisAsyncService {
     ) {
         if (!StringUtils.hasText(aiServerUrl)) {
             log.warn("AI server request skipped. ai.server-url is empty. analysisId={}", analysisId);
-            return createErrorResult(
+            return AiAnalysisResult.failed(createErrorResult(
                     "AI_SERVER_URL_EMPTY",
                     "AI analysis server URL is not configured.",
                     null
-            );
+            ));
         }
 
         log.info(
@@ -92,9 +95,9 @@ public class AiAnalysisAsyncService {
 
             log.info("AI analysis request completed. analysisId={}, response={}", analysisId, responseBody);
 
-            return normalizeResultBody(responseBody);
+            return normalizeSuccessResultBody(responseBody);
         } catch (WebClientResponseException e) {
-            String responseBody = normalizeResultBody(e.getResponseBodyAsString());
+            String responseBody = normalizeErrorResultBody(e.getResponseBodyAsString());
             log.warn(
                     "AI server returned error. analysisId={}, status={}, responseBody={}",
                     analysisId,
@@ -102,35 +105,56 @@ public class AiAnalysisAsyncService {
                     responseBody
             );
 
-            return responseBody;
+            return AiAnalysisResult.failed(responseBody);
         } catch (RuntimeException e) {
             log.warn("AI server request failed. analysisId={}", analysisId, e);
-            return createErrorResult(
+            return AiAnalysisResult.failed(createErrorResult(
                     "AI_SERVER_CONNECTION_FAILED",
                     "AI analysis server request failed.",
                     null
-            );
+            ));
         }
     }
 
-    private String normalizeResultBody(String responseBody) {
+    private AiAnalysisResult normalizeSuccessResultBody(String responseBody) {
         if (!StringUtils.hasText(responseBody)) {
-            return createErrorResult(
+            return AiAnalysisResult.failed(createErrorResult(
                     "AI_SERVER_EMPTY_RESPONSE",
                     "AI analysis server returned an empty response.",
                     null
-            );
+            ));
         }
 
         String trimmedBody = responseBody.trim();
         if (trimmedBody.startsWith("{") || trimmedBody.startsWith("[")) {
-            return trimmedBody;
+            return AiAnalysisResult.success(trimmedBody);
         }
 
-        return createErrorResult(
+        return AiAnalysisResult.failed(createErrorResult(
                 "AI_SERVER_NON_JSON_RESPONSE",
                 "AI analysis server returned a non-JSON response.",
                 trimmedBody
+        ));
+    }
+
+    private String normalizeErrorResultBody(String responseBody) {
+        if (StringUtils.hasText(responseBody)) {
+            String trimmedBody = responseBody.trim();
+            if (trimmedBody.startsWith("{") || trimmedBody.startsWith("[")) {
+                return trimmedBody;
+            }
+
+            return createErrorResult(
+                    "AI_SERVER_NON_JSON_RESPONSE",
+                    "AI analysis server returned a non-JSON response.",
+                    trimmedBody
+            );
+        }
+
+        return createErrorResult(
+                "AI_SERVER_ERROR",
+                "AI analysis server returned an error.",
+                null
         );
     }
 
@@ -155,5 +179,18 @@ public class AiAnalysisAsyncService {
             String desiredJobRole,
             List<String> fileUrls
     ) {
+    }
+
+    private record AiAnalysisResult(
+            String responseBody,
+            String status
+    ) {
+        private static AiAnalysisResult success(String responseBody) {
+            return new AiAnalysisResult(responseBody, STATUS_SUCCESS);
+        }
+
+        private static AiAnalysisResult failed(String responseBody) {
+            return new AiAnalysisResult(responseBody, STATUS_FAILED);
+        }
     }
 }
