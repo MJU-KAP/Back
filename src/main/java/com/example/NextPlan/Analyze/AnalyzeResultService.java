@@ -58,9 +58,7 @@ public class AnalyzeResultService {
         AiAnalysisRecord record = aiAnalysisRecordRepository.findById(analysisId)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
 
-        if (!record.getUserId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
-        }
+        validateOwner(record, userId);
 
         UserResume resume = findResume(record);
 
@@ -74,6 +72,22 @@ public class AnalyzeResultService {
                 parseResult(record.getResult()),
                 record.getCreatedAt()
         );
+    }
+
+    @Transactional
+    public void deleteAnalyzeResult(UUID userId, UUID analysisId) {
+        AiAnalysisRecord record = aiAnalysisRecordRepository.findById(analysisId)
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REQUEST));
+
+        validateOwner(record, userId);
+
+        aiAnalysisRecordRepository.delete(record);
+    }
+
+    private void validateOwner(AiAnalysisRecord record, UUID userId) {
+        if (!record.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
     }
 
     private UserResume findResume(AiAnalysisRecord record) {
