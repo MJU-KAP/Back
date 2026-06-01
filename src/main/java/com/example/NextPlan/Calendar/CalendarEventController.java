@@ -46,6 +46,9 @@ public class CalendarEventController {
     }
 
     public record CalendarEventCreateRequest(
+            @NotNull(message = "purposeId is required")
+            Integer purposeId,
+
             @NotNull(message = "eventDate is required")
             LocalDate eventDate,
 
@@ -56,7 +59,7 @@ public class CalendarEventController {
             String link
     ) {
         public CalendarEventService.CalendarEventRequest toServiceRequest() {
-            return new CalendarEventService.CalendarEventRequest(eventDate, title, description, link);
+            return new CalendarEventService.CalendarEventRequest(purposeId, eventDate, title, description, link);
         }
     }
 }

@@ -1,9 +1,11 @@
 package com.example.NextPlan.Calendar;
 
 import com.example.NextPlan.Entity.CalendarEvent;
+import com.example.NextPlan.Entity.Purpose;
 import com.example.NextPlan.Kakao.common.CustomException;
 import com.example.NextPlan.Kakao.common.ErrorCode;
 import com.example.NextPlan.Repository.CalendarEventRepository;
+import com.example.NextPlan.Repository.PurposeRepository;
 import com.example.NextPlan.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,13 +22,16 @@ public class CalendarEventService {
 
     private final CalendarEventRepository calendarEventRepository;
     private final UserRepository userRepository;
+    private final PurposeRepository purposeRepository;
 
     @Transactional
     public CalendarEventResponse createCalendarEvent(UUID userId, CalendarEventRequest request) {
         validateUser(userId);
+        validatePurposeOwner(userId, request.purposeId());
 
         CalendarEvent calendarEvent = CalendarEvent.builder()
                 .userId(userId)
+                .purposeId(request.purposeId())
                 .eventDate(request.eventDate())
                 .title(request.title())
                 .description(request.description())
@@ -55,7 +60,17 @@ public class CalendarEventService {
         }
     }
 
+    private void validatePurposeOwner(UUID userId, Integer purposeId) {
+        Purpose purpose = purposeRepository.findById(purposeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
+
+        if (!purpose.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+    }
+
     public record CalendarEventRequest(
+            Integer purposeId,
             LocalDate eventDate,
             String title,
             String description,
@@ -65,6 +80,7 @@ public class CalendarEventService {
 
     public record CalendarEventResponse(
             Integer calendarId,
+            Integer purposeId,
             LocalDate eventDate,
             String title,
             String description,
@@ -74,6 +90,7 @@ public class CalendarEventService {
         public static CalendarEventResponse from(CalendarEvent calendarEvent) {
             return new CalendarEventResponse(
                     calendarEvent.getCalendarId(),
+                    calendarEvent.getPurposeId(),
                     calendarEvent.getEventDate(),
                     calendarEvent.getTitle(),
                     calendarEvent.getDescription(),
