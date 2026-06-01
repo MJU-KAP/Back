@@ -35,6 +35,9 @@ public class CalendarEvent {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "purpose_id", nullable = false)
+    private Integer purposeId;
+
     @Column(name = "event_date", nullable = false)
     private LocalDate eventDate;
 

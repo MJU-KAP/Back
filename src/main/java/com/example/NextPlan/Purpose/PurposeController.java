@@ -6,13 +6,16 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -43,6 +46,18 @@ public class PurposeController {
     ) {
         UUID userId = UUID.fromString(authentication.getName());
         return ResponseEntity.ok(purposeService.getPurposes(userId));
+    }
+
+    @DeleteMapping("/{purposeId}")
+    public ResponseEntity<Map<String, String>> deletePurpose(
+            Authentication authentication,
+            @PathVariable Integer purposeId
+    ) {
+        UUID userId = UUID.fromString(authentication.getName());
+
+        purposeService.deletePurpose(userId, purposeId);
+
+        return ResponseEntity.ok(Map.of("message", "deleted success"));
     }
 
     public record PurposeCreateRequest(

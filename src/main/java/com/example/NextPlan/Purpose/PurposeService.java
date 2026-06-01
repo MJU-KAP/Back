@@ -50,6 +50,20 @@ public class PurposeService {
         return new PurposeListResponse(items.size(), items);
     }
 
+    @Transactional
+    public void deletePurpose(UUID userId, Integer purposeId) {
+        validateUser(userId);
+
+        Purpose purpose = purposeRepository.findById(purposeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
+
+        if (!purpose.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        purposeRepository.delete(purpose);
+    }
+
     private void validateUser(UUID userId) {
         if (!userRepository.existsById(userId)) {
             throw new CustomException(ErrorCode.USER_NOT_FOUND);
